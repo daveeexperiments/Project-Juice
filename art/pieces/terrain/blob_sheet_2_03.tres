@@ -1,0 +1,7 @@
+[gd_resource type="AtlasTexture" format=3]
+
+[ext_resource type="Texture2D" path="res://art/source/terrain/Blob Sheet 2.png" id="1_reafi"]
+
+[resource]
+atlas = ExtResource("1_reafi")
+region = Rect2(1875, 63, 2093, 922)

@@ -1,0 +1,7 @@
+[gd_resource type="AtlasTexture" format=3]
+
+[ext_resource type="Texture2D" path="res://art/source/terrain/Blob Sheet 3.png" id="1_kjwqw"]
+
+[resource]
+atlas = ExtResource("1_kjwqw")
+region = Rect2(1230, 206, 464, 638)
