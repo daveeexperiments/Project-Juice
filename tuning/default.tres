@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="TuningData" format=3]
+
+[ext_resource type="Script" path="res://tuning/tuning_data.gd" id="1_18uy6"]
+
+[resource]
+script = ExtResource("1_18uy6")
+slingshot_cradle_lift = 1.5
+preview_fade = 0.7
+preview_dash_spacing = 17.0
+camera_look_ahead = 0.3
+camera_look_ahead_max = 280.0

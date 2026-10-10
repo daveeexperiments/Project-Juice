@@ -1,0 +1,313 @@
+{
+  "tuningVersion": 15,
+  "values": {
+    "world": {
+      "gravity": 1200,
+      "maxBallSpeed": 1400,
+      "physicsStepRate": 120,
+      "timeScale": 1,
+      "rollOffStrength": 2.2,
+      "rollingFriction": 1,
+      "edgeSupportMargin": 2,
+      "restMaxSpeed": 40
+    },
+    "limiter": {
+      "mode": "grounded"
+    },
+    "grounded": {
+      "surfaceTolerance": 30,
+      "coyoteTime": 0.1,
+      "launchFromFan": true,
+      "fanLaunchAngle": 45,
+      "launchBuffer": false,
+      "bufferTime": 0.15
+    },
+    "spikes": {
+      "graceSeconds": 0.5,
+      "respawnDelay": 0.35
+    },
+    "flags": {
+      "touchRadius": 26,
+      "cablesAreCheckpoints": false
+    },
+    "lever": {
+      "massSquishy": 1,
+      "massRocky": 6,
+      "plankMass": 2.5,
+      "angularDamping": 2.2,
+      "pivotFriction": 40,
+      "counterweight": 0,
+      "impactStrength": 1,
+      "torqueScale": 1
+    },
+    "bounce": {
+      "style": "physical"
+    },
+    "procedural": {
+      "enabled": false
+    },
+    "risingAssist": {
+      "glassEnabled": true,
+      "wallEnabled": true,
+      "glassStrength": 1,
+      "wallStrength": 0.8,
+      "glassMinAngle": 30,
+      "wallMinAngle": 20,
+      "glassMinUpSpeed": 420,
+      "wallMinUpSpeed": 300,
+      "risingThreshold": 60,
+      "skimLift": true
+    },
+    "heat": {
+      "perGroundLaunch": 0.25,
+      "perAirLaunch": 0.45,
+      "coolRateWall": 1.5,
+      "coolRateGlass": 0.6,
+      "rockyCoolRateGlass": 1.5,
+      "coolRateAir": 0.08,
+      "powerLossAtMaxHeat": 0.6,
+      "previewShrinkAtMaxHeat": 0.7
+    },
+    "elasticity": {
+      "min": 0.3,
+      "lossPerLaunch": 0.18,
+      "scaleLossByPower": true,
+      "airLaunchMultiplier": 1,
+      "regenPerSecond": 0.15
+    },
+    "squishy": {
+      "gravityMultiplier": 0.7,
+      "radius": 12,
+      "minLaunchSpeed": 200,
+      "maxLaunchSpeed": 1000,
+      "restitution": {
+        "wall": 0.35,
+        "glass": 0.65
+      },
+      "landingFriction": 0.92,
+      "airDrag": 0,
+      "stopBounceThreshold": 45,
+      "squashAmount": 0.5,
+      "breaksGlass": false,
+      "glassBreakMinImpact": 0,
+      "glassBreakSpeedKeep": 1,
+      "screenShake": 0,
+      "launchesOffTrampoline": false,
+      "fanMultiplier": 2.4,
+      "cableBounce": 0.31,
+      "sustainedCableHeight": 150,
+      "risingAssist": true,
+      "settlesOnLanding": true,
+      "settleBounceHeight": 26,
+      "settleHops": 2,
+      "landingGrip": 0.86,
+      "mass": 1,
+      "trampolineBounce": 0
+    },
+    "rocky": {
+      "gravityMultiplier": 1.6,
+      "radius": 11,
+      "minLaunchSpeed": 180,
+      "maxLaunchSpeed": 850,
+      "restitution": {
+        "wall": 0,
+        "glass": 0
+      },
+      "landingFriction": 0.3,
+      "airDrag": 0,
+      "stopBounceThreshold": 60,
+      "squashAmount": 0,
+      "breaksGlass": true,
+      "glassBreakMinImpact": 5,
+      "glassBreakSpeedKeep": 0.85,
+      "screenShake": 0.008,
+      "launchesOffTrampoline": true,
+      "fanMultiplier": 0.3,
+      "cableBounce": 0.04,
+      "sustainedCableHeight": 62,
+      "risingAssist": false,
+      "settlesOnLanding": false,
+      "settleBounceHeight": 0,
+      "settleHops": 0,
+      "landingGrip": 0.7,
+      "mass": 6,
+      "trampolineBounce": 1
+    },
+    "surfaces": {
+      "wall": {
+        "restitutionMultiplier": 1,
+        "friction": 900
+      },
+      "glass": {
+        "restitutionMultiplier": 1,
+        "friction": 400,
+        "respawnSecondsOverride": -1,
+        "bounceMode": "reflect",
+        "boostStrength": 520,
+        "boostImpactGain": 0.55,
+        "boostSidewaysKeep": 0.65,
+        "boostMaxSpeed": 900,
+        "rockyMode": "always",
+        "hardBreakSpeed": 520,
+        "wallGlassGap": 4,
+        "wallGlassAngle": 10,
+        "passThroughDrag": 1.2,
+        "panelOverridesLevel": false
+      }
+    },
+    "charges": {
+      "max": 3,
+      "settleTime": 0,
+      "refillOnFloor": true,
+      "refillOnWall": true,
+      "refillOnCeiling": false,
+      "refillOnWallMaterial": true,
+      "refillOnGlassMaterial": false,
+      "refillOnGlassForRocky": true
+    },
+    "cables": {
+      "segments": 14,
+      "stiffness": 0.8,
+      "damping": 0.04,
+      "maxSag": 56,
+      "softness": 0.55,
+      "thickness": 5,
+      "recoil": 14,
+      "refillsCharges": true,
+      "restoresElasticity": false,
+      "rollingFriction": 70,
+      "centringBias": 70,
+      "clearAbove": 128,
+      "clearBelow": 96,
+      "sustainBounce": false,
+      "impactBonus": 0.55,
+      "extraDecay": 0.55
+    },
+    "pickups": {
+      "enabled": true,
+      "respawn": true,
+      "respawnDelay": 8,
+      "delayVariation": 2,
+      "maxActive": 12,
+      "positionMode": "fixed",
+      "randomOffsetRadius": 0,
+      "avoidRepeat": true,
+      "spawnWallMargin": 24,
+      "panelOverridesLevel": false
+    },
+    "audio": {
+      "enabled": true,
+      "muted": false,
+      "master": 0.7,
+      "effects": 1,
+      "ambient": 0.6,
+      "throttleScale": 1,
+      "maxVoices": 24
+    },
+    "juice": {
+      "intensity": 1,
+      "reduceMotion": false,
+      "squash": true,
+      "squashOnImpact": 0.55,
+      "stretchInFlight": 0.3,
+      "squashRecoverSeconds": 0.22,
+      "shake": true,
+      "shakeOnGlass": 0.009,
+      "shakeOnHardLanding": 0.006,
+      "shakeOnLaunch": 0.004,
+      "shakeDecay": 2.6,
+      "shakeMinSpeed": 420,
+      "hitstop": true,
+      "hitstopGlassMs": 50,
+      "hitstopHardLandingMs": 28,
+      "shards": true,
+      "shardCount": 10,
+      "shardSpread": 0.6,
+      "shardSeconds": 0.8,
+      "dust": true,
+      "dustOnLanding": 6,
+      "dustOnLaunch": 8,
+      "chipsOnHardHit": 5,
+      "maxParticles": 220,
+      "trail": true,
+      "trailLength": 14,
+      "trailMinSpeed": 260,
+      "spinMark": true,
+      "bounceChain": true,
+      "chainPitchStep": 0.06,
+      "surfaceMarks": true,
+      "surfaceMarkSeconds": 2.5,
+      "glassGlint": true,
+      "glintEverySeconds": 4,
+      "bandFeedback": true,
+      "goalCelebration": true,
+      "goalSlowMoSeconds": 0.9,
+      "menuWobble": true
+    },
+    "padding": {
+      "enabled": true,
+      "coverage": 0.35,
+      "minLength": 48,
+      "maxLength": 150,
+      "thickness": 10,
+      "seedOverride": -1,
+      "spawnClearance": 110,
+      "actorClearance": 70
+    },
+    "trampoline": {
+      "launchSpeed": 1150,
+      "impactBonus": 0.45,
+      "horizontalKeep": 0.6,
+      "squishyBounce": 0.12,
+      "refillsSquishy": true,
+      "refillsRocky": true,
+      "idleBounce": 4,
+      "idleSpeed": 1.6,
+      "boingInterval": 4
+    },
+    "fans": {
+      "blockedByGlass": true,
+      "strength": 9,
+      "targetSpeed": 430,
+      "range": 640,
+      "falloff": 1.1,
+      "sustain": 0.55
+    },
+    "slingshot": {
+      "dragForMaxPower": 220,
+      "deadZone": 12,
+      "cradleLift": 1.5,
+      "angleSnapStep": 5,
+      "aimRangeMode": "upward",
+      "aimRangeMin": 15,
+      "aimRangeMax": 165,
+      "aimRelativeToSurface": false,
+      "aimTimeScale": 0.3,
+      "aimRampSeconds": 0.1,
+      "aimSlowMoPitch": true,
+      "allowAirLaunch": true,
+      "coyoteTime": 0.1,
+      "previewLength": 1400,
+      "previewBounces": 3,
+      "previewBounceFade": 0.4,
+      "showContactMarkers": false,
+      "dashLength": 9,
+      "dashSpacing": 17,
+      "previewFade": 0.7
+    },
+    "camera": {
+      "mode": "smooth",
+      "followLerp": 0.12,
+      "climbOffset": 0.12,
+      "fallLookAhead": 0.3,
+      "fallLookAheadMax": 280
+    },
+    "fx": {
+      "squashRecoverMs": 140,
+      "switchPopScale": 1.35,
+      "switchPopMs": 120,
+      "shakeDurationMs": 140,
+      "debrisCount": 14
+    }
+  }
+}

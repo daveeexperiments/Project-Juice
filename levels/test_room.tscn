@@ -1,0 +1,193 @@
+[gd_scene format=3 uid="uid://bga2qv8bils2c"]
+
+[ext_resource type="Script" uid="uid://bqliqq328r3ch" path="res://levels/level.gd" id="1_level"]
+[ext_resource type="Script" uid="uid://bgi5hh35gllt5" path="res://ball/ball.gd" id="2_ball"]
+[ext_resource type="Script" uid="uid://c64ji3wuilyxh" path="res://slingshot/slingshot.gd" id="3_sling"]
+[ext_resource type="Script" uid="uid://c520mbhbjptw3" path="res://prediction/trajectory_preview.gd" id="4_preview"]
+[ext_resource type="Script" uid="uid://c5j6caclalhr8" path="res://camera/follow_camera.gd" id="5_camera"]
+[ext_resource type="Script" uid="uid://k0umov46tnfk" path="res://debug/debug_overlay.gd" id="6_debug"]
+[ext_resource type="Script" uid="uid://ctpd8wel1yc3u" path="res://levels/test_room_backdrop.gd" id="7_backdrop"]
+[ext_resource type="Script" uid="uid://b1icbvrghjd5t" path="res://levels/shatter_effect.gd" id="8_shatter"]
+[ext_resource type="PackedScene" uid="uid://bq2c85p8q77fe" path="res://blocks/Terrain.tscn" id="9_terrain"]
+[ext_resource type="PackedScene" uid="uid://csoqbamk3ndna" path="res://blocks/Glass.tscn" id="10_glass"]
+[ext_resource type="PackedScene" uid="uid://bn4ai4x1wtqdq" path="res://blocks/Spikes.tscn" id="11_spikes"]
+[ext_resource type="PackedScene" uid="uid://cl3t33em4ori1" path="res://blocks/Flag.tscn" id="12_flag"]
+[ext_resource type="PackedScene" uid="uid://cso3faqf3ndna" path="res://blocks/Spawn.tscn" id="13_spawn"]
+
+[node name="TestRoom" type="Node2D" unique_id=143786013]
+script = ExtResource("1_level")
+
+[node name="Backdrop" type="Node2D" parent="." unique_id=1186476749]
+script = ExtResource("7_backdrop")
+
+[node name="Terrain" type="Node2D" parent="." unique_id=128970274]
+
+[node name="Floor" parent="Terrain" unique_id=260055355 instance=ExtResource("9_terrain")]
+position = Vector2(600, 1220)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-560, -40, 560, -40, 560, 40, -560, 40)
+
+[node name="WallLeft" parent="Terrain" unique_id=1124452991 instance=ExtResource("9_terrain")]
+position = Vector2(75, 690)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-35, -570, 35, -570, 35, 570, -35, 570)
+
+[node name="WallRight" parent="Terrain" unique_id=989831021 instance=ExtResource("9_terrain")]
+position = Vector2(1125, 690)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-35, -570, 35, -570, 35, 570, -35, 570)
+
+[node name="Ceiling" parent="Terrain" unique_id=1015822800 instance=ExtResource("9_terrain")]
+position = Vector2(600, 150)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-560, -30, 560, -30, 560, 30, -560, 30)
+
+[node name="LedgeLow" parent="Terrain" unique_id=506804876 instance=ExtResource("9_terrain")]
+position = Vector2(295, 1014)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-125, -14, 125, -14, 125, 14, -125, 14)
+
+[node name="LedgeMid" parent="Terrain" unique_id=200245049 instance=ExtResource("9_terrain")]
+position = Vector2(750, 884)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-130, -14, 130, -14, 130, 14, -130, 14)
+
+[node name="LedgeHigh" parent="Terrain" unique_id=750365436 instance=ExtResource("9_terrain")]
+position = Vector2(350, 704)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-120, -14, 120, -14, 120, 14, -120, 14)
+
+[node name="SlopeGentle" parent="Terrain" unique_id=485197459 instance=ExtResource("9_terrain")]
+position = Vector2(730, 1145)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-170, 35, 170, -75, 170, -30, -170, 80)
+
+[node name="SlopeSteep" parent="Terrain" unique_id=1533255097 instance=ExtResource("9_terrain")]
+position = Vector2(205, 910)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-95, -90, 95, 40, 95, 90, -95, -40)
+
+[node name="CurvedMound" parent="Terrain" unique_id=785706581 instance=ExtResource("9_terrain")]
+position = Vector2(765, 1150)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-125, 30, -80, -35, 0, -58, 80, -35, 125, 30)
+smoothing = 0.8
+
+[node name="ChannelLeft" parent="Terrain" unique_id=20592785 instance=ExtResource("9_terrain")]
+position = Vector2(470, 430)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-18, -150, 18, -150, 18, 150, -18, 150)
+
+[node name="ChannelRight" parent="Terrain" unique_id=102362544 instance=ExtResource("9_terrain")]
+position = Vector2(700, 430)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-18, -150, 18, -150, 18, 150, -18, 150)
+
+[node name="GapLedgeLeft" parent="Terrain" unique_id=135550388 instance=ExtResource("9_terrain")]
+position = Vector2(230, 540)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-110, -14, 110, -14, 110, 14, -110, 14)
+
+[node name="GapLedgeRight" parent="Terrain" unique_id=848507547 instance=ExtResource("9_terrain")]
+position = Vector2(930, 540)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-110, -14, 110, -14, 110, 14, -110, 14)
+
+[node name="Glass" type="Node2D" parent="." unique_id=1495967649]
+
+[node name="GlassBridge" parent="Glass" unique_id=1414878024 instance=ExtResource("10_glass")]
+position = Vector2(580, 540)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-245, -9, 245, -9, 245, 9, -245, 9)
+
+[node name="GlassBlocker" parent="Glass" unique_id=1291135007 instance=ExtResource("10_glass")]
+position = Vector2(585, 430)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-100, -140, 100, -140, 100, 140, -100, 140)
+rocky_breaks = 2
+
+[node name="GlassOnWall" parent="Glass" unique_id=2040195355 instance=ExtResource("10_glass")]
+position = Vector2(118, 690)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-8, -220, 8, -220, 8, 220, -8, 220)
+
+[node name="GlassAngled" parent="Glass" unique_id=1317978335 instance=ExtResource("10_glass")]
+position = Vector2(900, 740)
+rotation = 0.5
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-95, -9, 95, -9, 95, 9, -95, 9)
+
+[node name="GlassPlatformA" parent="Glass" unique_id=585165039 instance=ExtResource("10_glass")]
+position = Vector2(300, 860)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-80, -9, 80, -9, 80, 9, -80, 9)
+
+[node name="GlassPlatformB" parent="Glass" unique_id=163336544 instance=ExtResource("10_glass")]
+position = Vector2(620, 700)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-80, -9, 80, -9, 80, 9, -80, 9)
+respawn_seconds = 3.0
+
+[node name="GlassNeverBreak" parent="Glass" unique_id=1219975173 instance=ExtResource("10_glass")]
+position = Vector2(960, 960)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-80, -9, 80, -9, 80, 9, -80, 9)
+rocky_breaks = 1
+
+[node name="Spikes" type="Node2D" parent="." unique_id=1953387432]
+
+[node name="SpikesFloor" parent="Spikes" unique_id=1151207795 instance=ExtResource("11_spikes")]
+position = Vector2(470, 1180)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-75, -10.8, 75, -10.8, 75, 7.2, -75, 7.2)
+width = 150.0
+
+[node name="SpikesCeiling" parent="Spikes" unique_id=2061772378 instance=ExtResource("11_spikes")]
+position = Vector2(820, 180)
+rotation = 3.14159
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-65, -10.8, 65, -10.8, 65, 7.2, -65, 7.2)
+width = 130.0
+
+[node name="SpikesWall" parent="Spikes" unique_id=1271870326 instance=ExtResource("11_spikes")]
+position = Vector2(1090, 820)
+rotation = -1.5708
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-80, -10.8, 80, -10.8, 80, 7.2, -80, 7.2)
+width = 160.0
+
+[node name="Flags" type="Node2D" parent="." unique_id=1128056360]
+
+[node name="FlagOne" parent="Flags" unique_id=1056333381 instance=ExtResource("12_flag")]
+position = Vector2(330, 1000)
+
+[node name="FlagTwo" parent="Flags" unique_id=364069505 instance=ExtResource("12_flag")]
+position = Vector2(760, 870)
+
+[node name="Spawn" parent="." unique_id=71206588 instance=ExtResource("13_spawn")]
+position = Vector2(250, 1180)
+
+[node name="ShatterEffect" type="Node2D" parent="." unique_id=1273312344]
+script = ExtResource("8_shatter")
+
+[node name="TrajectoryPreview" type="Node2D" parent="." unique_id=1855216409]
+script = ExtResource("4_preview")
+
+[node name="Ball" type="Node2D" parent="." unique_id=1435642070]
+position = Vector2(250, 1168)
+script = ExtResource("2_ball")
+
+[node name="Slingshot" type="Node2D" parent="." unique_id=1499725633]
+script = ExtResource("3_sling")
+ball_path = NodePath("../Ball")
+preview_path = NodePath("../TrajectoryPreview")
+
+[node name="FollowCamera" type="Camera2D" parent="." unique_id=249382331]
+script = ExtResource("5_camera")
+target_path = NodePath("../Ball")
+
+[node name="DebugOverlay" type="Node2D" parent="." unique_id=68996218]
+visible = false
+script = ExtResource("6_debug")
+ball_path = NodePath("../Ball")
+slingshot_path = NodePath("../Slingshot")
