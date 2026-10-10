@@ -1,0 +1,180 @@
+[gd_scene format=3 uid="uid://cjuiceactorplayground"]
+
+[ext_resource type="Script" uid="uid://bqliqq328r3ch" path="res://levels/level.gd" id="1_level"]
+[ext_resource type="Script" uid="uid://bgi5hh35gllt5" path="res://ball/ball.gd" id="2_ball"]
+[ext_resource type="Script" uid="uid://c64ji3wuilyxh" path="res://slingshot/slingshot.gd" id="3_sling"]
+[ext_resource type="Script" uid="uid://c520mbhbjptw3" path="res://prediction/trajectory_preview.gd" id="4_preview"]
+[ext_resource type="Script" uid="uid://c5j6caclalhr8" path="res://camera/follow_camera.gd" id="5_camera"]
+[ext_resource type="Script" uid="uid://k0umov46tnfk" path="res://debug/debug_overlay.gd" id="6_debug"]
+[ext_resource type="Script" uid="uid://b1icbvrghjd5t" path="res://levels/shatter_effect.gd" id="7_shatter"]
+[ext_resource type="PackedScene" uid="uid://cjuiceterrainblock" path="res://blocks/Terrain.tscn" id="8_terrain"]
+[ext_resource type="PackedScene" uid="uid://cjuicefanblock" path="res://blocks/Fan.tscn" id="9_fan"]
+[ext_resource type="PackedScene" uid="uid://cjuicecableblock" path="res://blocks/Cable.tscn" id="10_cable"]
+[ext_resource type="PackedScene" uid="uid://cjuicetrampolineblock" path="res://blocks/Trampoline.tscn" id="11_tramp"]
+[ext_resource type="PackedScene" uid="uid://cjuiceleverblock" path="res://blocks/Lever.tscn" id="12_lever"]
+[ext_resource type="PackedScene" uid="uid://cjuiceflagblock" path="res://blocks/Flag.tscn" id="13_flag"]
+[ext_resource type="PackedScene" uid="uid://cjuicespawnblock" path="res://blocks/Spawn.tscn" id="14_spawn"]
+
+[node name="ActorPlayground" type="Node2D"]
+script = ExtResource("1_level")
+
+[node name="Paper" type="Polygon2D" parent="."]
+z_index = -10
+color = Color(0.964706, 0.952941, 0.92549, 1)
+polygon = PackedVector2Array(-100, 60, 2400, 60, 2400, 1320, -100, 1320)
+
+[node name="Terrain" type="Node2D" parent="."]
+
+[node name="Floor" parent="Terrain" instance=ExtResource("8_terrain")]
+position = Vector2(1150, 1220)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-1150, -40, 1150, -40, 1150, 40, -1150, 40)
+
+[node name="Ceiling" parent="Terrain" instance=ExtResource("8_terrain")]
+position = Vector2(1150, 150)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-1150, -30, 1150, -30, 1150, 30, -1150, 30)
+
+[node name="WallLeft" parent="Terrain" instance=ExtResource("8_terrain")]
+position = Vector2(35, 690)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-35, -540, 35, -540, 35, 540, -35, 540)
+
+[node name="WallRight" parent="Terrain" instance=ExtResource("8_terrain")]
+position = Vector2(2265, 690)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-35, -540, 35, -540, 35, 540, -35, 540)
+
+[node name="LedgeFan" parent="Terrain" instance=ExtResource("8_terrain")]
+position = Vector2(560, 514)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-100, -14, 100, -14, 100, 14, -100, 14)
+
+[node name="LedgeCableLeft" parent="Terrain" instance=ExtResource("8_terrain")]
+position = Vector2(760, 864)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-90, -14, 90, -14, 90, 14, -90, 14)
+
+[node name="LedgeCableRight" parent="Terrain" instance=ExtResource("8_terrain")]
+position = Vector2(1140, 864)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-90, -14, 90, -14, 90, 14, -90, 14)
+
+[node name="LedgeTrampoline" parent="Terrain" instance=ExtResource("8_terrain")]
+position = Vector2(1760, 874)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-100, -14, 100, -14, 100, 14, -100, 14)
+
+[node name="LeverPillar" parent="Terrain" instance=ExtResource("8_terrain")]
+position = Vector2(2000, 1090)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-20, -90, 20, -90, 20, 90, -20, 90)
+
+[node name="LeverPerch" parent="Terrain" instance=ExtResource("8_terrain")]
+position = Vector2(1850, 784)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-70, -14, 70, -14, 70, 14, -70, 14)
+
+[node name="Actors" type="Node2D" parent="."]
+
+[node name="FanColumn" parent="Actors" instance=ExtResource("9_fan")]
+position = Vector2(300, 1164)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-70, 0, 70, 0, 70, 16, -70, 16)
+
+[node name="CableSpan" parent="Actors" instance=ExtResource("10_cable")]
+position = Vector2(950, 845)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-140, 0, 140, 0)
+
+[node name="TrampolinePad" parent="Actors" instance=ExtResource("11_tramp")]
+position = Vector2(1500, 1170)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(-72, -10, 72, -10, 72, 10, -72, 10)
+
+[node name="SeeSaw" parent="Actors" instance=ExtResource("12_lever")]
+position = Vector2(2000, 975)
+half_length = 110.0
+thickness = 7.0
+max_tilt_degrees = 35.0
+
+[node name="Flags" type="Node2D" parent="."]
+
+[node name="FlagFan" parent="Flags" instance=ExtResource("13_flag")]
+position = Vector2(560, 500)
+
+[node name="FlagCable" parent="Flags" instance=ExtResource("13_flag")]
+position = Vector2(1140, 850)
+
+[node name="FlagTrampoline" parent="Flags" instance=ExtResource("13_flag")]
+position = Vector2(1760, 860)
+
+[node name="Spawn" parent="." instance=ExtResource("14_spawn")]
+position = Vector2(150, 1180)
+
+[node name="Labels" type="Node2D" parent="."]
+modulate = Color(0.0784314, 0.0784314, 0.0784314, 1)
+
+[node name="FanLabel" type="Label" parent="Labels"]
+offset_left = 160.0
+offset_top = 1020.0
+offset_right = 700.0
+offset_bottom = 1080.0
+text = "1. FAN
+squishy rides the stream, rocky only sinks more slowly in it.
+the ledge is higher than any single launch: ride up,
+then shoot again from inside the stream (grounded.launchFromFan)."
+
+[node name="CableLabel" type="Label" parent="Labels"]
+offset_left = 700.0
+offset_top = 680.0
+offset_right = 1260.0
+offset_bottom = 740.0
+text = "2. CABLE
+squishy is thrown by the rope, rocky lands in it dead.
+solid from above, pass straight up through it from below."
+
+[node name="TrampolineLabel" type="Label" parent="Labels"]
+offset_left = 1380.0
+offset_top = 1000.0
+offset_right = 1940.0
+offset_bottom = 1060.0
+text = "3. TRAMPOLINE
+rocky is launched, squishy is not.
+shoot rocky in at an angle -- the pad keeps 60% of it."
+
+[node name="LeverLabel" type="Label" parent="Labels"]
+offset_left = 1700.0
+offset_top = 640.0
+offset_right = 2240.0
+offset_bottom = 700.0
+text = "4. LEVER
+rocky weighs 6 to squishy's 1, but at the shipped torqueScale
+BOTH drive the plank to its stop -- only the SPEED differs.
+that saturation is the open question in docs/PORTING.md.
+rocky cannot climb here: go up as squishy, switch in mid-air."
+
+[node name="ShatterEffect" type="Node2D" parent="."]
+script = ExtResource("7_shatter")
+
+[node name="TrajectoryPreview" type="Node2D" parent="."]
+script = ExtResource("4_preview")
+
+[node name="Ball" type="Node2D" parent="."]
+position = Vector2(150, 1168)
+script = ExtResource("2_ball")
+
+[node name="Slingshot" type="Node2D" parent="."]
+script = ExtResource("3_sling")
+ball_path = NodePath("../Ball")
+preview_path = NodePath("../TrajectoryPreview")
+
+[node name="FollowCamera" type="Camera2D" parent="."]
+script = ExtResource("5_camera")
+target_path = NodePath("../Ball")
+
+[node name="DebugOverlay" type="Node2D" parent="."]
+visible = false
+script = ExtResource("6_debug")
+ball_path = NodePath("../Ball")
+slingshot_path = NodePath("../Slingshot")
