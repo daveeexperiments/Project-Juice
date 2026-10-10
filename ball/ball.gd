@@ -103,9 +103,12 @@ var on_launchable_ground: bool:
 	get:
 		if held:
 			return true
-		if state.ground_material == SurfaceKind.NONE:
-			return false
-		return BallSim.is_horizontal_surface(state.ground_ny)
+		if state.ground_material != SurfaceKind.NONE:
+			return BallSim.is_horizontal_surface(state.ground_ny)
+		# An upward stream counts as something to stand on, when `grounded.launchFromFan` says so.
+		# Without it a squishy ball hovering in a fan would have no shot available and no way down
+		# but to drift out -- held up by the level and stuck in it at the same time.
+		return _world != null and BallSim.fan_support(state, form, _world)
 
 
 ## True while Grounded mode would let a shot go: on launchable ground, or inside the coyote

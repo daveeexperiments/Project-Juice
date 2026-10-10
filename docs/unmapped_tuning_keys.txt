@@ -22,12 +22,6 @@ cables.stiffness
 cables.sustainBounce
 cables.thickness
 camera.mode
-fans.blockedByGlass
-fans.falloff
-fans.range
-fans.strength
-fans.sustain
-fans.targetSpeed
 flags.cablesAreCheckpoints
 fx.debrisCount
 fx.shakeDurationMs
@@ -100,7 +94,6 @@ pickups.respawnDelay
 pickups.spawnWallMargin
 procedural.enabled
 rocky.cableBounce
-rocky.fanMultiplier
 rocky.launchesOffTrampoline
 rocky.screenShake
 rocky.sustainedCableHeight
@@ -108,7 +101,6 @@ rocky.trampolineBounce
 slingshot.aimSlowMoPitch
 slingshot.showContactMarkers
 squishy.cableBounce
-squishy.fanMultiplier
 squishy.launchesOffTrampoline
 squishy.screenShake
 squishy.sustainedCableHeight

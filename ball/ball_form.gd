@@ -123,3 +123,10 @@ var mass: float:
 	get:
 		var t: TuningData = TuningData.get_active()
 		return t.rocky_mass if id == ROCKY else t.squishy_mass
+
+## How much of a fan's push this ball feels. The whole fan puzzle is this one number: a stream is
+## a route for the squishy ball and scenery for the rocky one.
+var fan_multiplier: float:
+	get:
+		var t: TuningData = TuningData.get_active()
+		return t.rocky_fan_multiplier if id == ROCKY else t.squishy_fan_multiplier

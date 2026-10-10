@@ -26,7 +26,10 @@ const RESOLVE_PASSES: int = 4
 static func step_ball(state: BallState, form: BallForm, world: StepWorld, dt: float, policy: StepPolicy) -> bool:
 	var t: TuningData = TuningData.get_active()
 
-	# Phase 1-2 have no fans, so the gravity scale is always 1. Fans multiply it in Phaser.
+	# Moving air first, so it is part of the same forces phase as gravity and the two can cancel:
+	# a squishy ball in an upward stream hovers because the push and the weight land in the same
+	# step, not because anything special-cases hovering.
+	_apply_fans(state, form, world, dt)
 	state.vy += t.world_gravity * form.gravity_multiplier * dt
 
 	if form.air_drag > 0.0:
@@ -201,6 +204,31 @@ static func _respond_to_shape(
 		contact.boosted = boosted
 		return policy.on_contact(contact)
 	return true
+
+
+# ---------------------------------------------------------------- fans
+
+## Add up every stream the ball is standing in. Fans hold no state, so this needs no copy for the
+## prediction: the ghost calls the same function against the same fans and gets the same answer.
+static func _apply_fans(state: BallState, form: BallForm, world: StepWorld, dt: float) -> void:
+	if world.fans.is_empty():
+		return
+	var push: Vector2 = Vector2.ZERO
+	for fan: FanField in world.fans:
+		push += fan.accel_for(state.x, state.y, state.vx, state.vy, form, world)
+	if push == Vector2.ZERO:
+		return
+	state.vx += push.x * dt
+	state.vy += push.y * dt
+
+
+## Is the ball being held up by a stream it could launch from? Used by the ball for
+## `grounded.launchFromFan`, so a player carried by a fan is not stranded with no shot.
+static func fan_support(state: BallState, form: BallForm, world: StepWorld) -> bool:
+	for fan: FanField in world.fans:
+		if fan.is_launchable_stream(state.x, state.y, form, world):
+			return true
+	return false
 
 
 # ---------------------------------------------------------------- glass

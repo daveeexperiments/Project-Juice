@@ -273,6 +273,33 @@ extends Resource
 ## How close the ball must come to raise a flag (px beyond its own radius).
 @export_range(0.0, 120.0, 2.0) var flags_touch_radius: float = 26.0
 
+# ---------------------------------------------------------------- fans
+
+@export_group("Fans")
+## How hard the stream closes the gap to its target speed, per second. The fan makes up only the
+## SHORTFALL below the target, so it never brakes a ball that is already going faster.
+@export_range(0.0, 40.0, 0.1) var fans_strength: float = 9.0
+## The speed the stream carries a ball at (px/s).
+@export_range(0.0, 2000.0, 10.0) var fans_target_speed: float = 430.0
+## How far the stream reaches (px).
+@export_range(0.0, 2000.0, 10.0) var fans_range: float = 640.0
+## Exponent on the fade along the stream. 1 is a straight taper; higher keeps the push strong near
+## the mouth and then drops it off a cliff.
+@export_range(0.0, 4.0, 0.05) var fans_falloff: float = 1.1
+## How much push survives at the very edge of the mouth, so a ball slides out of a stream rather
+## than falling off a shelf of air.
+@export_range(0.0, 1.0, 0.01) var fans_sustain: float = 0.55
+## On: a pane holds the air back. Off: the wind blows straight through it.
+@export var fans_blocked_by_glass: bool = true
+
+# ---------------------------------------------------------------- per-ball actor response
+
+@export_group("Ball vs actors")
+## How much of a fan's push each ball feels. The squishy ball is flown by a stream; the rocky ball
+## barely drifts in one, because 0.3 of the push cannot beat its own gravity.
+@export_range(0.0, 6.0, 0.05) var squishy_fan_multiplier: float = 2.4
+@export_range(0.0, 6.0, 0.05) var rocky_fan_multiplier: float = 0.3
+
 # ---------------------------------------------------------------- helpers
 
 ## Which bounce rules apply. Phase 1 ports "physical" only; "rising" arrives with the assist.
@@ -520,6 +547,15 @@ const FIELD_BY_PATH: Dictionary = {
 	"rocky.glassBreakSpeedKeep": "rocky_glass_break_speed_keep",
 	"squishy.risingAssist": "squishy_rising_assist",
 	"rocky.risingAssist": "rocky_rising_assist",
+
+	"fans.strength": "fans_strength",
+	"fans.targetSpeed": "fans_target_speed",
+	"fans.range": "fans_range",
+	"fans.falloff": "fans_falloff",
+	"fans.sustain": "fans_sustain",
+	"fans.blockedByGlass": "fans_blocked_by_glass",
+	"squishy.fanMultiplier": "squishy_fan_multiplier",
+	"rocky.fanMultiplier": "rocky_fan_multiplier",
 
 	"spikes.graceSeconds": "spikes_grace_seconds",
 	"spikes.respawnDelay": "spikes_respawn_delay",

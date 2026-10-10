@@ -56,6 +56,9 @@ func _initialize() -> void:
 	print("\n settling")
 	_test_settle_comes_to_rest(world)
 
+	print("\n fans")
+	_test_fans()
+
 	print("\n launch limiter")
 	_test_limiter_grounded()
 	_test_limiter_charges()
@@ -367,6 +370,163 @@ func _test_settle_comes_to_rest(world: StepWorld) -> void:
 # ---------------------------------------------------------------- helpers
 
 ## The real ball's side of a step: break a pane for good, and note spikes.
+# ---------------------------------------------------------------- fans
+
+func _test_fans() -> void:
+	var world: StepWorld = _plain_room()
+	var fan: FanField = FanField.new(1, Vector2(500.0, 1000.0), Vector2.UP, 200.0, 640.0, 1.0)
+	world.fans.append(fan)
+
+	var squishy: BallForm = BallForm.make(BallForm.SQUISHY)
+	var rocky: BallForm = BallForm.make(BallForm.ROCKY)
+	var start: Vector2 = Vector2(500.0, 700.0)
+
+	# The whole fan puzzle in one check: the same stream is a route for one ball and scenery for
+	# the other, because 0.3 of the push cannot beat the rocky ball's 1920 px/s^2 of gravity.
+	var squishy_dy: float = _drift_in_world(world, squishy, start, Vector2.ZERO, 0.3)
+	var rocky_dy: float = _drift_in_world(world, rocky, start, Vector2.ZERO, 0.3)
+	_check(
+		"a fan flies the squishy ball and only slows the rocky one",
+		squishy_dy < 0.0 and rocky_dy > 0.0,
+		"squishy %.0f px, rocky %.0f px over 0.3 s" % [squishy_dy, rocky_dy],
+	)
+
+	# A fan makes up the shortfall and nothing more, so flying a fast shot through one is free.
+	var slow: Vector2 = fan.accel_for(start.x, start.y, 0.0, 0.0, squishy, world)
+	var already_fast: Vector2 = fan.accel_for(start.x, start.y, 0.0, -900.0, squishy, world)
+	_check(
+		"a fan pushes a slow ball and never brakes a fast one",
+		slow.length() > 0.0 and already_fast == Vector2.ZERO,
+		"%.0f px/s^2 at rest, %.0f at 900 px/s up" % [slow.length(), already_fast.length()],
+	)
+
+	# Outside the mouth and behind it there is no stream at all.
+	var off_to_the_side: Vector2 = fan.accel_for(start.x + 180.0, start.y, 0.0, 0.0, squishy, world)
+	var behind_the_mouth: Vector2 = fan.accel_for(start.x, 1040.0, 0.0, 0.0, squishy, world)
+	var past_the_reach: Vector2 = fan.accel_for(start.x, 1000.0 - 700.0, 0.0, 0.0, squishy, world)
+	_check(
+		"the stream has edges, a back and an end",
+		off_to_the_side == Vector2.ZERO and behind_the_mouth == Vector2.ZERO and past_the_reach == Vector2.ZERO,
+		"nothing outside the mouth, behind it, or beyond its reach",
+	)
+
+	# A pane across the stream: a lid when `blockedByGlass` is on, a window when it is off.
+	var lidded: StepWorld = _plain_room()
+	lidded.fans.append(fan)
+	lidded.shapes.append(ShapeBody.new(900, PackedVector2Array([
+		Vector2(400.0, 850.0), Vector2(600.0, 850.0), Vector2(600.0, 870.0), Vector2(400.0, 870.0),
+	]), SurfaceKind.GLASS, 0.0))
+	GlassRules.classify(lidded.shapes)
+
+	var saved: Dictionary = _apply({"fans_blocked_by_glass": true})
+	var blocked: Vector2 = fan.accel_for(start.x, start.y, 0.0, 0.0, squishy, lidded)
+	_restore(saved)
+	saved = _apply({"fans_blocked_by_glass": false})
+	var through: Vector2 = fan.accel_for(start.x, start.y, 0.0, 0.0, squishy, lidded)
+	_restore(saved)
+	_check(
+		"glass is a lid on the stream, or a window, as the tuning says",
+		blocked == Vector2.ZERO and through.length() > 0.0,
+		"blocked %.0f px/s^2, window %.0f" % [blocked.length(), through.length()],
+	)
+
+	# Where the stream reaches must not depend on which ball is asking, or the two forms would
+	# disagree about the shape of the level.
+	saved = _apply({"fans_blocked_by_glass": true})
+	var rocky_blocked: bool = fan.accel_for(start.x, start.y, 0.0, 0.0, rocky, lidded) == Vector2.ZERO
+	_restore(saved)
+	_check(
+		"a pane shadows the stream for both balls alike",
+		rocky_blocked,
+		"the rocky ball's pass-through rules do not move the air",
+	)
+
+	# `grounded.launchFromFan`: being carried is not a dead end.
+	saved = _apply({"grounded_launch_from_fan": true, "grounded_fan_launch_angle": 45.0})
+	var up_is_launchable: bool = fan.is_launchable_stream(start.x, start.y, squishy, world)
+	var sideways: FanField = FanField.new(2, Vector2(500.0, 1000.0), Vector2.RIGHT, 200.0, 640.0, 1.0)
+	var sideways_is_not: bool = not sideways.is_launchable_stream(start.x, start.y, squishy, world)
+	_restore(saved)
+	_check(
+		"an upward stream can be launched from, a sideways one cannot",
+		up_is_launchable and sideways_is_not,
+		"within %.0f deg of up" % 45.0,
+	)
+
+	_test_prediction_through_actors("a fan", world, squishy, start, Vector2(120.0, -300.0))
+
+
+## The regression that matters for every actor: the ghost and the ball must still agree step for
+## step once something other than terrain is pushing them about.
+func _test_prediction_through_actors(
+	label: String,
+	world: StepWorld,
+	form: BallForm,
+	from: Vector2,
+	velocity: Vector2,
+) -> void:
+	var preview: TrajectoryPreview = TrajectoryPreview.new()
+	preview._ready()
+	var predicted: PackedVector2Array = preview.simulate(form, from, velocity, world)
+	preview.free()
+
+	var state: BallState = BallState.new()
+	state.x = from.x
+	state.y = from.y
+	state.vx = velocity.x
+	state.vy = velocity.y
+	state.ground_material = SurfaceKind.NONE
+	var policy: RealPolicy = RealPolicy.new()
+	policy.world = world
+	var dt: float = TuningData.get_active().fixed_delta()
+	var worst: float = 0.0
+	var last: int = predicted.size() - 1
+	for i: int in range(1, predicted.size()):
+		BallSim.step_ball(state, form, world, dt, policy)
+		if i < last:
+			worst = maxf(worst, Vector2(state.x, state.y).distance_to(predicted[i]))
+
+	_check(
+		"prediction stays exact through %s" % label,
+		worst <= TOLERANCE,
+		"worst %.6f px over %d steps" % [worst, predicted.size()],
+	)
+
+
+## A bare room: floor, ceiling, nothing to get in the way. The big test world is too cluttered for
+## actor tests -- its ramp and ledges sit in the way of any stream long enough to matter.
+func _plain_room() -> StepWorld:
+	var world: StepWorld = StepWorld.new()
+	world.shapes.append(ShapeBody.new(1, PackedVector2Array([
+		Vector2(0.0, 1000.0), Vector2(1000.0, 1000.0), Vector2(1000.0, 1060.0), Vector2(0.0, 1060.0),
+	]), SurfaceKind.WALL, 0.0))
+	world.shapes.append(ShapeBody.new(2, PackedVector2Array([
+		Vector2(0.0, 0.0), Vector2(1000.0, 0.0), Vector2(1000.0, 40.0), Vector2(0.0, 40.0),
+	]), SurfaceKind.WALL, 0.0))
+	return world
+
+
+## How far the ball moved on Y over `seconds`. Negative is upward.
+func _drift_in_world(
+	world: StepWorld,
+	form: BallForm,
+	from: Vector2,
+	velocity: Vector2,
+	seconds: float,
+) -> float:
+	var state: BallState = BallState.new()
+	state.x = from.x
+	state.y = from.y
+	state.vx = velocity.x
+	state.vy = velocity.y
+	state.ground_material = SurfaceKind.NONE
+	var dt: float = TuningData.get_active().fixed_delta()
+	for _i: int in int(seconds / dt):
+		if not BallSim.step_ball(state, form, world, dt, null):
+			break
+	return state.y - from.y
+
+
 # ---------------------------------------------------------------- the launch limiter
 #
 # All four modes are pure bookkeeping: they gate and scale launches and never move a ball. That is
