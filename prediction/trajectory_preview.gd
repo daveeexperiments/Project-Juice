@@ -32,7 +32,17 @@ func _ready() -> void:
 
 
 ## Predict a shot. Returns the path, so the tests can compare it with the real ball step by step.
-func simulate(form: BallForm, from: Vector2, velocity: Vector2, world: StepWorld) -> PackedVector2Array:
+##
+## `length_scale` shortens the line without touching the physics -- Heat mode hides the far end as
+## the ball warms up. It only bounds how far along the path we bother to walk, so a prediction run
+## at 0.5 is the first half of the same curve, point for point, not a different curve.
+func simulate(
+	form: BallForm,
+	from: Vector2,
+	velocity: Vector2,
+	world: StepWorld,
+	length_scale: float = 1.0,
+) -> PackedVector2Array:
 	# A throwaway copy of the world: same geometry, its own set of predicted breaks. The ghost
 	# can smash a pane and carry on through the gap without touching what the real ball sees.
 	var ghost: StepWorld = world.ghost()
@@ -60,7 +70,7 @@ func simulate(form: BallForm, from: Vector2, velocity: Vector2, world: StepWorld
 	_sim.pending_lift = 0.0
 
 	var dt: float = t.fixed_delta()
-	var max_length: float = t.preview_length
+	var max_length: float = t.preview_length * maxf(0.0, length_scale)
 
 	_points.append(from)
 	_distances.append(0.0)

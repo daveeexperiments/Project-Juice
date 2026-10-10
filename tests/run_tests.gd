@@ -56,6 +56,12 @@ func _initialize() -> void:
 	print("\n settling")
 	_test_settle_comes_to_rest(world)
 
+	print("\n launch limiter")
+	_test_limiter_grounded()
+	_test_limiter_charges()
+	_test_limiter_heat()
+	_test_limiter_elasticity()
+
 	_report_unmapped()
 
 	print("")
@@ -361,6 +367,237 @@ func _test_settle_comes_to_rest(world: StepWorld) -> void:
 # ---------------------------------------------------------------- helpers
 
 ## The real ball's side of a step: break a pane for good, and note spikes.
+# ---------------------------------------------------------------- the launch limiter
+#
+# All four modes are pure bookkeeping: they gate and scale launches and never move a ball. That is
+# why these need no world, no scene and no ball -- which is also the argument for keeping the
+# limiter out of `BallSim.step_ball`.
+
+func _test_limiter_grounded() -> void:
+	# allowAirLaunch is TRUE in the shipped tuning, so this also pins down that Grounded mode
+	# ignores it. Grounded mode IS the refusal; if it consulted the switch it would never refuse.
+	var saved: Dictionary = _apply({
+		"limiter_mode": LaunchLimiter.MODE_GROUNDED,
+		"slingshot_allow_air_launch": true,
+	})
+	var limiter: LaunchLimiter = LaunchLimiter.new()
+	limiter.reset()
+	_check("grounded mode fires from the ground", limiter.can_launch(true), "allowed")
+	_check(
+		"grounded mode refuses in mid-air even with air launches allowed",
+		not limiter.can_launch(false),
+		"refused",
+	)
+	_check("grounded mode never weakens a shot", is_equal_approx(limiter.launch_scale(), 1.0), "power x1.00")
+	_restore(saved)
+
+
+func _test_limiter_charges() -> void:
+	var saved: Dictionary = _apply({
+		"limiter_mode": LaunchLimiter.MODE_CHARGES,
+		"charges_max": 3,
+		"charges_settle_time": 0.0,
+		"slingshot_allow_air_launch": true,
+		"charges_refill_on_floor": true,
+		"charges_refill_on_ceiling": false,
+		"charges_refill_on_wall_material": true,
+		"charges_refill_on_glass_material": false,
+		"charges_refill_on_glass_for_rocky": true,
+	})
+	var squishy: BallForm = BallForm.make(BallForm.SQUISHY)
+	var rocky: BallForm = BallForm.make(BallForm.ROCKY)
+	var limiter: LaunchLimiter = LaunchLimiter.new()
+
+	limiter.reset()
+	var fired: int = 0
+	while limiter.can_launch(false) and fired < 10:
+		limiter.note_launch(1.0, false)
+		fired += 1
+	_check(
+		"charges mode spends the budget and then refuses",
+		fired == 3 and not limiter.can_launch(false),
+		"fired %d, %d left" % [fired, limiter.charges],
+	)
+
+	# A rock floor puts the whole budget back.
+	limiter.note_contact(_contact_facing(-1.0, SurfaceKind.WALL), squishy)
+	_check("a rock floor refills the budget", limiter.charges == 3, "%d charges" % limiter.charges)
+
+	# A ceiling is switched off, so hitting one gives nothing back.
+	_drain(limiter)
+	limiter.note_contact(_contact_facing(1.0, SurfaceKind.WALL), squishy)
+	_check("a ceiling refills nothing when switched off", limiter.charges == 0, "%d charges" % limiter.charges)
+
+	# The glass exception: a dead end for the squishy ball, a refill for the rocky one.
+	_drain(limiter)
+	limiter.note_contact(_contact_facing(-1.0, SurfaceKind.GLASS), squishy)
+	var squishy_charges: int = limiter.charges
+	limiter.note_contact(_contact_facing(-1.0, SurfaceKind.GLASS), rocky)
+	var rocky_charges: int = limiter.charges
+	_check(
+		"glass refills for the rocky ball only",
+		squishy_charges == 0 and rocky_charges == 3,
+		"squishy %d, rocky %d" % [squishy_charges, rocky_charges],
+	)
+
+	# With a settle time set, a touch arms the refill but only staying put collects it.
+	_restore(saved)
+	saved = _apply({
+		"limiter_mode": LaunchLimiter.MODE_CHARGES,
+		"charges_max": 3,
+		"charges_settle_time": 0.5,
+	})
+	_drain(limiter)
+	limiter.note_contact(_contact_facing(-1.0, SurfaceKind.WALL), squishy)
+	var on_touch: int = limiter.charges
+	limiter.tick(0.2, SurfaceKind.WALL, squishy)
+	var part_way: int = limiter.charges
+	limiter.tick(0.4, SurfaceKind.WALL, squishy)
+	var settled: int = limiter.charges
+	_check(
+		"a settle time makes the refill wait for the ball to stay",
+		on_touch == 0 and part_way == 0 and settled == 3,
+		"touch %d, 0.2s %d, 0.6s %d" % [on_touch, part_way, settled],
+	)
+
+	# Bouncing away before the dwell is served forfeits it.
+	_drain(limiter)
+	limiter.note_contact(_contact_facing(-1.0, SurfaceKind.WALL), squishy)
+	limiter.tick(0.2, SurfaceKind.WALL, squishy)
+	limiter.tick(0.2, SurfaceKind.NONE, squishy)
+	limiter.tick(0.4, SurfaceKind.WALL, squishy)
+	_check(
+		"leaving early forfeits the refill",
+		limiter.charges == 0,
+		"%d charges after bouncing off mid-dwell" % limiter.charges,
+	)
+	_restore(saved)
+
+
+func _test_limiter_heat() -> void:
+	var saved: Dictionary = _apply({"limiter_mode": LaunchLimiter.MODE_HEAT})
+	var t: TuningData = TuningData.get_active()
+	var squishy: BallForm = BallForm.make(BallForm.SQUISHY)
+	var rocky: BallForm = BallForm.make(BallForm.ROCKY)
+	var limiter: LaunchLimiter = LaunchLimiter.new()
+
+	limiter.reset()
+	limiter.note_launch(1.0, true)
+	var ground_heat: float = limiter.heat
+	limiter.reset()
+	limiter.note_launch(1.0, false)
+	var air_heat: float = limiter.heat
+	_check(
+		"an airborne shot costs more heat than a grounded one",
+		air_heat > ground_heat,
+		"air %.2f vs ground %.2f" % [air_heat, ground_heat],
+	)
+
+	# The documented design: heat never refuses a shot, it only weakens it. This is the behaviour
+	# the Phaser project flagged as an open question (a patient player can still slow-climb), so
+	# it is pinned here deliberately -- if it ever becomes a refusal, this check should fail first.
+	limiter.heat = 1.0
+	_check(
+		"a fully hot ball still fires, weakly",
+		limiter.can_launch(true) and limiter.launch_scale() < 1.0,
+		"power x%.2f" % limiter.launch_scale(),
+	)
+	_check(
+		"power at full heat matches the tuning",
+		is_equal_approx(limiter.launch_scale(), 1.0 - t.heat_power_loss_at_max_heat),
+		"x%.2f, expected x%.2f" % [limiter.launch_scale(), 1.0 - t.heat_power_loss_at_max_heat],
+	)
+	_check(
+		"the ghost line shrinks at full heat",
+		is_equal_approx(limiter.preview_scale(), 1.0 - t.heat_preview_shrink_at_max_heat),
+		"x%.2f" % limiter.preview_scale(),
+	)
+
+	# Cooling rates: rock sheds heat, air barely does. That gap is what makes a chain of airborne
+	# shots cost something, and it is the whole reason the mode works.
+	var on_rock: float = _cooled_over(limiter, 1.0, SurfaceKind.WALL, squishy)
+	var in_air: float = _cooled_over(limiter, 1.0, SurfaceKind.NONE, squishy)
+	_check(
+		"rock sheds heat far faster than air",
+		on_rock > in_air * 10.0,
+		"%.2f per second on rock vs %.2f in air" % [on_rock, in_air]
+	)
+
+	var rocky_on_glass: float = _cooled_over(limiter, 1.0, SurfaceKind.GLASS, rocky)
+	var squishy_on_glass: float = _cooled_over(limiter, 1.0, SurfaceKind.GLASS, squishy)
+	_check(
+		"the rocky ball cools on glass faster than the squishy one",
+		rocky_on_glass > squishy_on_glass,
+		"rocky %.2f vs squishy %.2f" % [rocky_on_glass, squishy_on_glass],
+	)
+	_restore(saved)
+
+
+func _test_limiter_elasticity() -> void:
+	var saved: Dictionary = _apply({
+		"limiter_mode": LaunchLimiter.MODE_ELASTICITY,
+		"elasticity_scale_loss_by_power": true,
+	})
+	var t: TuningData = TuningData.get_active()
+	var squishy: BallForm = BallForm.make(BallForm.SQUISHY)
+	var limiter: LaunchLimiter = LaunchLimiter.new()
+
+	limiter.reset()
+	limiter.note_launch(1.0, true)
+	var after_full: float = limiter.elasticity
+	limiter.reset()
+	limiter.note_launch(0.25, true)
+	var after_gentle: float = limiter.elasticity
+	_check(
+		"a gentle shot wears the band less than a full pull",
+		after_gentle > after_full,
+		"gentle %.3f vs full %.3f" % [after_gentle, after_full],
+	)
+
+	limiter.reset()
+	for _i: int in 40:
+		limiter.note_launch(1.0, false)
+	_check(
+		"wear stops at the floor",
+		is_equal_approx(limiter.elasticity, clampf(t.elasticity_min, 0.0, 1.0)),
+		"%.3f, floor %.3f" % [limiter.elasticity, t.elasticity_min],
+	)
+	_check(
+		"a worn band still fires, weakly",
+		limiter.can_launch(true) and limiter.launch_scale() < 1.0,
+		"power x%.2f" % limiter.launch_scale(),
+	)
+
+	var worn: float = limiter.elasticity
+	limiter.tick(1.0, SurfaceKind.NONE, squishy)
+	_check(
+		"the band recovers with time",
+		limiter.elasticity > worn,
+		"%.3f -> %.3f over a second" % [worn, limiter.elasticity],
+	)
+	_restore(saved)
+
+
+## Spend every charge, so the next thing tested starts from empty.
+func _drain(limiter: LaunchLimiter) -> void:
+	limiter.reset()
+	for _i: int in maxi(1, TuningData.get_active().charges_max) + 2:
+		limiter.note_launch(1.0, false)
+
+
+## Heat shed over `seconds` resting on `material`, starting from fully hot.
+func _cooled_over(limiter: LaunchLimiter, seconds: float, material: int, form: BallForm) -> float:
+	limiter.heat = 1.0
+	limiter.tick(seconds, material, form)
+	return 1.0 - limiter.heat
+
+
+## A contact whose surface faces `ny` (-1 is a floor, +1 a ceiling, 0 a wall).
+func _contact_facing(ny: float, material: int) -> Contact:
+	var at: BallState = BallState.new()
+	return Contact.make(at, 0.0, ny, material, 300.0, 100.0, true, BallSim.is_horizontal_surface(ny))
+
+
 class RealPolicy extends StepPolicy:
 	var world: StepWorld = null
 	var spiked: bool = false

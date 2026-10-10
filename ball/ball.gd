@@ -30,6 +30,9 @@ var air_time: float = 0.0
 ## Seconds since the ball was last standing on something it could launch from. Ported from
 ## LaunchLimiter.sinceGrounded, which is what gives Grounded mode its coyote window.
 var since_launchable: float = INF
+## What stops the player launching for ever: charges, heat or a tiring band, depending on the
+## mode. It never moves the ball, so it lives beside the simulation rather than inside it.
+var limiter: LaunchLimiter = LaunchLimiter.new()
 
 var _world: StepWorld = null
 var _policy: StepPolicy = null
@@ -53,6 +56,8 @@ func setup(world: StepWorld, start: Vector2) -> void:
 	state.settle_hops = 0
 	since_launchable = INF
 	air_time = 0.0
+	# A death must never leave the player stranded with an empty budget.
+	limiter.reset()
 	position = start
 
 
@@ -60,12 +65,15 @@ func setup(world: StepWorld, start: Vector2) -> void:
 func step(dt: float) -> void:
 	if held:
 		air_time = 0.0
+		# Cooling and regeneration carry on in the cradle: waiting is how a hot ball recovers.
+		limiter.tick(dt, state.ground_material, form)
 		return
 	if _world == null:
 		return
 	BallSim.step_ball(state, form, _world, dt, _policy)
 	air_time = 0.0 if grounded else air_time + dt
 	since_launchable = 0.0 if on_launchable_ground else since_launchable + dt
+	limiter.tick(dt, state.ground_material, form)
 
 
 func sync_visuals(delta: float) -> void:
@@ -100,18 +108,32 @@ var on_launchable_ground: bool:
 		return BallSim.is_horizontal_surface(state.ground_ny)
 
 
-## True while Grounded mode will let a shot go: on launchable ground, or inside the coyote
+## True while Grounded mode would let a shot go: on launchable ground, or inside the coyote
 ## window just after leaving it. Ported from LaunchLimiter.grounded.
-var can_launch_now: bool:
+##
+## Every mode is handed this answer, because every mode still treats a grounded shot differently
+## from an airborne one -- a shot off a surface is cheaper in heat and in wear, and is the only
+## shot Grounded mode permits at all.
+var grounded_launch_ok: bool:
 	get:
 		if held or on_launchable_ground:
 			return true
 		return since_launchable <= maxf(0.0, TuningData.get_active().grounded_coyote_time)
 
 
+## True while the ACTIVE limiter mode will let a shot go. This is what the slingshot asks.
+var can_launch_now: bool:
+	get:
+		return limiter.can_launch(grounded_launch_ok)
+
+
 ## Throw the ball. Ported from Ball.launch: a launch always leaves the ground and uses up the
 ## coyote grace, so one shot can never become two.
 func launch(vx: float, vy: float, power: float = 1.0) -> void:
+	# Read this BEFORE anything below, because the launch itself burns the coyote grace and the
+	# ground material -- after that there is no way to tell a grounded shot from an airborne one,
+	# and every limiter mode charges differently for the two.
+	var was_grounded: bool = grounded_launch_ok
 	held = false
 	air_time = INF
 	since_launchable = INF  # A launch uses up the coyote grace, so one shot cannot become two.
@@ -119,6 +141,7 @@ func launch(vx: float, vy: float, power: float = 1.0) -> void:
 	state.vy = vy
 	state.ground_material = SurfaceKind.NONE
 	state.settle_hops = 0
+	limiter.note_launch(power, was_grounded)
 	launched.emit(power)
 
 
@@ -199,6 +222,10 @@ class BallContactPolicy extends StepPolicy:
 		_ball = ball
 
 	func on_contact(contact: Contact) -> bool:
+		# Charges refill from here, and deliberately not only on an impact: a touch is a touch.
+		# It has to be a contact rather than the support probe, because a wall or ceiling bounce
+		# refills too and neither of those ever becomes `ground_material`.
+		_ball.limiter.note_contact(contact, _ball.form)
 		if contact.is_impact:
 			_ball.squash_from(contact)
 			_ball.contacted.emit(contact)

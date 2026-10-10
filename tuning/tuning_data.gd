@@ -96,6 +96,57 @@ extends Resource
 ## Releasing just before landing fires the shot on touchdown.
 @export var grounded_launch_buffer: bool = false
 @export_range(0.0, 0.6, 0.01) var grounded_buffer_time: float = 0.15
+## A fan stream counts as something to launch from, so a player held up by one is not stranded.
+@export var grounded_launch_from_fan: bool = true
+## How far off straight up a fan may blow and still be launchable (degrees).
+@export_range(0.0, 89.0, 1.0) var grounded_fan_launch_angle: float = 45.0
+
+# ---------------------------------------------------------------- the launch limiter
+
+@export_group("Launch limiter")
+## Which rule stops a player launching for ever. Grounded is the Phaser default.
+@export_enum("Grounded:0", "Charges:1", "Heat:2", "Elasticity:3") var limiter_mode: int = 0
+
+@export_subgroup("Charges")
+## Shots in a full budget.
+@export_range(0.0, 12.0, 1.0) var charges_max: int = 3
+## How long the ball must stay on a qualifying surface before the refill lands (seconds).
+@export_range(0.0, 3.0, 0.05) var charges_settle_time: float = 0.0
+## Which way a surface must face to give charges back.
+@export var charges_refill_on_floor: bool = true
+@export var charges_refill_on_wall: bool = true
+@export var charges_refill_on_ceiling: bool = false
+## ...and what it must be made of.
+@export var charges_refill_on_wall_material: bool = true
+@export var charges_refill_on_glass_material: bool = false
+## The exception that makes glass worth hitting as the rocky ball.
+@export var charges_refill_on_glass_for_rocky: bool = true
+
+@export_subgroup("Heat")
+## Heat added by one shot. An airborne shot costs nearly twice a grounded one.
+@export_range(0.0, 1.0, 0.01) var heat_per_ground_launch: float = 0.25
+@export_range(0.0, 1.0, 0.01) var heat_per_air_launch: float = 0.45
+## Heat shed per second, by what the ball is resting on. Air barely cools at all, which is what
+## makes a chain of airborne shots cost something.
+@export_range(0.0, 4.0, 0.01) var heat_cool_rate_wall: float = 1.5
+@export_range(0.0, 4.0, 0.01) var heat_cool_rate_glass: float = 0.6
+## The rocky ball is standing on what it broke rather than resting on the pane, so it cools fast.
+@export_range(0.0, 4.0, 0.01) var heat_rocky_cool_rate_glass: float = 1.5
+@export_range(0.0, 4.0, 0.01) var heat_cool_rate_air: float = 0.08
+## Fraction of launch power lost at full heat. A hot ball still fires, just weakly.
+@export_range(0.0, 1.0, 0.01) var heat_power_loss_at_max_heat: float = 0.6
+## ...and how much of the ghost line is hidden, so a hot shot is less certain as well as weaker.
+@export_range(0.0, 1.0, 0.01) var heat_preview_shrink_at_max_heat: float = 0.7
+
+@export_subgroup("Elasticity")
+## How worn the band can get. 1 is fresh.
+@export_range(0.0, 1.0, 0.01) var elasticity_min: float = 0.3
+@export_range(0.0, 1.0, 0.01) var elasticity_loss_per_launch: float = 0.18
+## On: a gentle shot wears the band less than a full pull.
+@export var elasticity_scale_loss_by_power: bool = true
+## Extra wear for a shot taken in mid-air.
+@export_range(0.0, 4.0, 0.05) var elasticity_air_launch_multiplier: float = 1.0
+@export_range(0.0, 2.0, 0.01) var elasticity_regen_per_second: float = 0.15
 
 # ---------------------------------------------------------------- slingshot
 
@@ -116,6 +167,9 @@ extends Resource
 @export var slingshot_aim_relative_to_surface: bool = false
 ## Grace after leaving a surface during which a shot still counts as grounded (seconds).
 @export_range(0.0, 0.5, 0.01) var slingshot_coyote_time: float = 0.1
+## Whether a mid-air shot is permitted at all. Grounded mode refuses one regardless: that mode IS
+## the refusal. The other three modes consult this, then charge for the shot their own way.
+@export var slingshot_allow_air_launch: bool = true
 ## How fast the world runs while aiming. Never 0: the world slows, it never stops.
 @export_range(0.05, 1.0, 0.05) var slingshot_aim_time_scale: float = 0.3
 ## Seconds to ease into and out of slow motion.
@@ -325,6 +379,8 @@ func _enum_index(path: String, value: String) -> int:
 			return ["reflect", "boost"].find(value)
 		"surfaces.glass.rockyMode":
 			return ["obstruction", "always", "hard", "never", "pass"].find(value)
+		"limiter.mode":
+			return ["grounded", "charges", "heat", "elasticity"].find(value)
 	return -1
 
 
@@ -384,6 +440,34 @@ const FIELD_BY_PATH: Dictionary = {
 	"grounded.coyoteTime": "grounded_coyote_time",
 	"grounded.launchBuffer": "grounded_launch_buffer",
 	"grounded.bufferTime": "grounded_buffer_time",
+	"grounded.launchFromFan": "grounded_launch_from_fan",
+	"grounded.fanLaunchAngle": "grounded_fan_launch_angle",
+
+	"limiter.mode": "limiter_mode",
+
+	"charges.max": "charges_max",
+	"charges.settleTime": "charges_settle_time",
+	"charges.refillOnFloor": "charges_refill_on_floor",
+	"charges.refillOnWall": "charges_refill_on_wall",
+	"charges.refillOnCeiling": "charges_refill_on_ceiling",
+	"charges.refillOnWallMaterial": "charges_refill_on_wall_material",
+	"charges.refillOnGlassMaterial": "charges_refill_on_glass_material",
+	"charges.refillOnGlassForRocky": "charges_refill_on_glass_for_rocky",
+
+	"heat.perGroundLaunch": "heat_per_ground_launch",
+	"heat.perAirLaunch": "heat_per_air_launch",
+	"heat.coolRateWall": "heat_cool_rate_wall",
+	"heat.coolRateGlass": "heat_cool_rate_glass",
+	"heat.rockyCoolRateGlass": "heat_rocky_cool_rate_glass",
+	"heat.coolRateAir": "heat_cool_rate_air",
+	"heat.powerLossAtMaxHeat": "heat_power_loss_at_max_heat",
+	"heat.previewShrinkAtMaxHeat": "heat_preview_shrink_at_max_heat",
+
+	"elasticity.min": "elasticity_min",
+	"elasticity.lossPerLaunch": "elasticity_loss_per_launch",
+	"elasticity.scaleLossByPower": "elasticity_scale_loss_by_power",
+	"elasticity.airLaunchMultiplier": "elasticity_air_launch_multiplier",
+	"elasticity.regenPerSecond": "elasticity_regen_per_second",
 
 	"slingshot.deadZone": "slingshot_dead_zone",
 	"slingshot.dragForMaxPower": "slingshot_drag_for_max_power",
@@ -394,6 +478,7 @@ const FIELD_BY_PATH: Dictionary = {
 	"slingshot.aimRangeMax": "slingshot_aim_range_max",
 	"slingshot.aimRelativeToSurface": "slingshot_aim_relative_to_surface",
 	"slingshot.coyoteTime": "slingshot_coyote_time",
+	"slingshot.allowAirLaunch": "slingshot_allow_air_launch",
 	"slingshot.aimTimeScale": "slingshot_aim_time_scale",
 	"slingshot.aimRampSeconds": "slingshot_aim_ramp_seconds",
 	"slingshot.previewLength": "preview_length",
