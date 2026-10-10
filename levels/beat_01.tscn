@@ -32,7 +32,7 @@ position = Vector2(-2663, 1308)
 color = Color(0, 0, 0, 0)
 
 [node name="blob_sheet_1_06" parent="Terrain" unique_id=1637940940 instance=ExtResource("3_vuiy4")]
-position = Vector2(656, -200)
+position = Vector2(656, -160)
 scale = Vector2(1, 1)
 color = Color(0, 0, 0, 0)
 
@@ -43,7 +43,7 @@ scale = Vector2(1.5, 1.5)
 color = Color(0, 0, 0, 0)
 
 [node name="blob_sheet_1_09" parent="Terrain" unique_id=347855729 instance=ExtResource("19_k5vw7")]
-position = Vector2(805, 1544.9998)
+position = Vector2(805, 1532.9996)
 rotation = -1.7697638
 scale = Vector2(0.99999994, 0.99999994)
 color = Color(0, 0, 0, 0)
@@ -59,50 +59,64 @@ rotation = 3.185226
 scale = Vector2(1, 1)
 color = Color(0, 0, 0, 0)
 
+[node name="blob_sheet_1_04" parent="Terrain" unique_id=2052758590 instance=ExtResource("18_q0kt6")]
+position = Vector2(601, 1298.0001)
+rotation = 2.9653144
+scale = Vector2(2.9725406, 2.9725406)
+color = Color(0, 0, 0, 0)
+
+[node name="blob_sheet_1_05" parent="Terrain" unique_id=418884992 instance=ExtResource("18_q0kt6")]
+position = Vector2(618.0001, 1545.0002)
+rotation = 2.9653144
+scale = Vector2(2.9725406, 2.9725406)
+color = Color(0, 0, 0, 0)
+
 [node name="Props" type="Node2D" parent="." unique_id=1086718218]
 
 [node name="ChimneyB" parent="Props" unique_id=148336799 instance=ExtResource("12_stack")]
 position = Vector2(851, 611)
 scale = Vector2(0.9, 0.9)
 color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(3.22417, 3.2363, 3.94013, 60.0133, 30.64112, 106.38648, 36.84103, 145.50655, 35.09214, 534.6989, 0.24464, 612.0605, 3.23791, 659.8013, 258.77582, 658.7637, 258.75568, 603.0974, 225.69145, 525.7773, 223.00633, 170.9069, 228.02898, 114.49404, 259.76114, 59.88982, 261.7442, 15.03528, 261.7886, 4.057907)
 
 [node name="ChimneyB2" parent="Props" unique_id=740448787 instance=ExtResource("12_stack")]
-position = Vector2(30, 648)
-scale = Vector2(0.502029, 0.502029)
+position = Vector2(-988.3895, 633.84827)
+scale = Vector2(1.5923666, 1.5923666)
 color = Color(0, 0, 0, 0)
 
 [node name="ChimneyB3" parent="Props" unique_id=170654317 instance=ExtResource("12_stack")]
-position = Vector2(443, 588.00006)
-scale = Vector2(0.502029, 0.502029)
+position = Vector2(25, 538)
+scale = Vector2(1.17554, 1.1755401)
 color = Color(0, 0, 0, 0)
 
 [node name="prop_sheet_1_27" parent="Props" unique_id=2062657363 instance=ExtResource("13_gear_a")]
-position = Vector2(330, 632)
-scale = Vector2(0.36228296, 0.36735913)
+position = Vector2(-173.38953, 604.8483)
+scale = Vector2(0.68238205, 0.69194335)
 color = Color(0, 0, 0, 0)
 
 [node name="prop_sheet_1_26" parent="Props" unique_id=1764690254 instance=ExtResource("13_gear_a")]
-position = Vector2(128, 667)
-scale = Vector2(0.3548387, 0.3548387)
+position = Vector2(-652.3895, 684.0443)
+scale = Vector2(0.79156333, 0.79156333)
 color = Color(0, 0, 0, 0)
 
 [node name="prop_sheet_1_11" parent="Props" unique_id=2127009833 instance=ExtResource("14_gear_b")]
-position = Vector2(266.00003, 699)
+position = Vector2(-370.38953, 711.84827)
+scale = Vector2(0.34188738, 0.34188738)
 color = Color(0, 0, 0, 0)
 
 [node name="prop_sheet_1_28" parent="Props" unique_id=872167389 instance=ExtResource("13_gear_a")]
-position = Vector2(529, 622.00006)
-scale = Vector2(0.36228296, 0.36735913)
+position = Vector2(176.00005, 610)
+scale = Vector2(0.67741954, 0.6869113)
 color = Color(0, 0, 0, 0)
 
 [node name="prop_sheet_1_12" parent="Props" unique_id=1689155259 instance=ExtResource("14_gear_b")]
-position = Vector2(655, 634)
-scale = Vector2(0.19663481, 0.19663481)
+position = Vector2(405, 631)
+scale = Vector2(0.35433888, 0.35433888)
 color = Color(0, 0, 0, 0)
 
 [node name="prop_sheet_1_29" parent="Props" unique_id=988259473 instance=ExtResource("13_gear_a")]
-position = Vector2(769, 657.00006)
-scale = Vector2(0.36228296, 0.36735913)
+position = Vector2(681, 644)
+scale = Vector2(0.5558315, 0.5636196)
 color = Color(0, 0, 0, 0)
 
 [node name="prop_sheet_1_30" parent="Props" unique_id=776965265 instance=ExtResource("13_gear_a")]
@@ -131,7 +145,7 @@ color = Color(0, 0, 0, 0)
 position = Vector2(1105, 545)
 
 [node name="Spawn" parent="." unique_id=269154367 instance=ExtResource("8_spawn")]
-position = Vector2(140, 640)
+position = Vector2(-755, 594)
 
 [node name="ShatterEffect" type="Node2D" parent="." unique_id=1420018273]
 script = ExtResource("7_shatter")
@@ -140,7 +154,7 @@ script = ExtResource("7_shatter")
 script = ExtResource("4_preview")
 
 [node name="Ball" type="Node2D" parent="." unique_id=1482576845]
-position = Vector2(140, 628)
+position = Vector2(-755, 582)
 script = ExtResource("2_ball")
 
 [node name="Slingshot" type="Node2D" parent="." unique_id=1629812612]
@@ -149,6 +163,7 @@ ball_path = NodePath("../Ball")
 preview_path = NodePath("../TrajectoryPreview")
 
 [node name="FollowCamera" type="Camera2D" parent="." unique_id=937803993]
+zoom = Vector2(0.6, 0.6)
 script = ExtResource("5_camera")
 target_path = NodePath("../Ball")
 
@@ -179,4 +194,10 @@ color = Color(0, 0, 0, 0)
 position = Vector2(1306.9999, 2206)
 rotation = -1.5707964
 scale = Vector2(1.7069229, 1.7069229)
+color = Color(0, 0, 0, 0)
+
+[node name="blob_sheet_1_05" parent="." unique_id=1463434066 instance=ExtResource("18_q0kt6")]
+position = Vector2(444, 1943)
+rotation = 3.3178709
+scale = Vector2(2.9725406, 2.9725406)
 color = Color(0, 0, 0, 0)
