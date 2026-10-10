@@ -1,0 +1,107 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://levels/level.gd" id="1_level"]
+[ext_resource type="Script" path="res://ball/ball.gd" id="2_ball"]
+[ext_resource type="Script" path="res://slingshot/slingshot.gd" id="3_sling"]
+[ext_resource type="Script" path="res://prediction/trajectory_preview.gd" id="4_preview"]
+[ext_resource type="Script" path="res://camera/follow_camera.gd" id="5_camera"]
+[ext_resource type="Script" path="res://debug/debug_overlay.gd" id="6_debug"]
+[ext_resource type="Script" path="res://levels/shatter_effect.gd" id="7_shatter"]
+[ext_resource type="PackedScene" path="res://blocks/Spawn.tscn" id="8_spawn"]
+[ext_resource type="PackedScene" path="res://blocks/Flag.tscn" id="9_flag"]
+[ext_resource type="PackedScene" path="res://art/scenes/terrain/blob_sheet_2_15.tscn" id="10_ground"]
+[ext_resource type="PackedScene" path="res://art/scenes/terrain/blob_sheet_1_02.tscn" id="11_roof"]
+[ext_resource type="PackedScene" path="res://art/scenes/props/prop_sheet_1_46.tscn" id="12_stack"]
+[ext_resource type="PackedScene" path="res://art/scenes/props/prop_sheet_1_26.tscn" id="13_gear_a"]
+[ext_resource type="PackedScene" path="res://art/scenes/props/prop_sheet_1_11.tscn" id="14_gear_b"]
+[ext_resource type="PackedScene" path="res://art/scenes/props/prop_sheet_1_27.tscn" id="15_gear_c"]
+[ext_resource type="PackedScene" path="res://art/scenes/props/prop_sheet_1_49.tscn" id="16_gear_d"]
+[ext_resource type="PackedScene" path="res://art/scenes/props/prop_sheet_1_52.tscn" id="17_gear_e"]
+
+[node name="Beat01" type="Node2D"]
+script = ExtResource("1_level")
+
+[node name="Terrain" type="Node2D" parent="."]
+
+[node name="GroundLeft" parent="Terrain" instance=ExtResource("10_ground")]
+position = Vector2(-40, 690)
+scale = Vector2(0.288, 0.288)
+
+[node name="GroundRight" parent="Terrain" instance=ExtResource("10_ground")]
+position = Vector2(580, 690)
+scale = Vector2(0.288, 0.288)
+
+[node name="GroundFar" parent="Terrain" instance=ExtResource("10_ground")]
+position = Vector2(1180, 690)
+scale = Vector2(0.288, 0.288)
+
+[node name="CavernRoof" parent="Terrain" instance=ExtResource("11_roof")]
+position = Vector2(120, -120)
+scale = Vector2(0.288, 0.288)
+
+[node name="Props" type="Node2D" parent="."]
+
+[node name="GearA" parent="Props" instance=ExtResource("13_gear_a")]
+position = Vector2(240, 640)
+scale = Vector2(0.192, 0.192)
+
+[node name="GearB" parent="Props" instance=ExtResource("14_gear_b")]
+position = Vector2(330, 620)
+scale = Vector2(0.144, 0.144)
+
+[node name="GearC" parent="Props" instance=ExtResource("15_gear_c")]
+position = Vector2(450, 645)
+scale = Vector2(0.192, 0.192)
+
+[node name="GearD" parent="Props" instance=ExtResource("16_gear_d")]
+position = Vector2(700, 650)
+scale = Vector2(0.144, 0.144)
+
+[node name="GearE" parent="Props" instance=ExtResource("17_gear_e")]
+position = Vector2(790, 660)
+scale = Vector2(0.192, 0.192)
+
+[node name="GearF" parent="Props" instance=ExtResource("13_gear_a")]
+position = Vector2(880, 645)
+scale = Vector2(0.192, 0.192)
+
+[node name="ChimneyA" parent="Props" instance=ExtResource("12_stack")]
+position = Vector2(560, 575)
+scale = Vector2(0.192, 0.192)
+
+[node name="ChimneyB" parent="Props" instance=ExtResource("12_stack")]
+position = Vector2(1080, 560)
+scale = Vector2(0.2112, 0.2112)
+
+[node name="Flags" type="Node2D" parent="."]
+
+[node name="FlagTop" parent="Flags" instance=ExtResource("9_flag")]
+position = Vector2(1105, 545)
+
+[node name="Spawn" parent="." instance=ExtResource("8_spawn")]
+position = Vector2(140, 640)
+
+[node name="ShatterEffect" type="Node2D" parent="."]
+script = ExtResource("7_shatter")
+
+[node name="TrajectoryPreview" type="Node2D" parent="."]
+script = ExtResource("4_preview")
+
+[node name="Ball" type="Node2D" parent="."]
+position = Vector2(140, 628)
+script = ExtResource("2_ball")
+
+[node name="Slingshot" type="Node2D" parent="."]
+script = ExtResource("3_sling")
+ball_path = NodePath("../Ball")
+preview_path = NodePath("../TrajectoryPreview")
+
+[node name="FollowCamera" type="Camera2D" parent="."]
+script = ExtResource("5_camera")
+target_path = NodePath("../Ball")
+
+[node name="DebugOverlay" type="Node2D" parent="."]
+visible = false
+script = ExtResource("6_debug")
+ball_path = NodePath("../Ball")
+slingshot_path = NodePath("../Slingshot")

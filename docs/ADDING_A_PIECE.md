@@ -3,19 +3,40 @@
 How to get from a delivered sheet to a piece standing in a level. Written to be followed without
 asking anyone, including me.
 
-## What exists after slicing
+## The two commands
 
 ```bash
-godot --headless --path . --script tools/slice_sheets.gd
+godot --headless --path . --script tools/slice_sheets.gd    # find the pieces
+godot --headless --path . --script tools/import_pieces.gd   # give them collision
 ```
 
-Safe to re-run at any time. It writes three things and never touches the source art:
+Both are safe to re-run at any time, and the second is the one you run after changing a `kind`.
+Neither touches the source art.
 
 | Where | What | Who owns it |
 |---|---|---|
 | `art/manifest/<sheet>.tres` | every piece, and the collision each one gets | **you** — the `kind` field |
 | `art/pieces/<family>/<id>.tres` | one AtlasTexture per piece | generated, don't hand-edit |
+| `art/scenes/<family>/<id>.tscn` | **the placeable piece** — art plus collision | generated, don't hand-edit |
 | `docs/SHEET_REPORT.md` | the same list as a table, for reading away from the editor | generated |
+
+`art/scenes/` is what you drag into a level. Each one is:
+
+```
+<id>          TerrainBlock   the collision, scaled to world size, placeholder ink off
+  Art         Sprite2D       the piece's art
+```
+
+It stays a `TerrainBlock` rather than a sprite with a shape bolted on, because that is what the
+rest of the game already understands — the level collects the `terrain` group on load, so
+collision, the route check, the editor gizmo and the debug overlay all come along unchanged.
+
+**Levels instance these scenes, so a re-import updates every placement you have already made.**
+Change a gear's `kind` from `POLYGON` to `CIRCLE`, re-run the importer, and every copy of it in
+every level becomes a disc. That is the payoff for the manifest being separate from the art.
+
+A piece with `kind = NONE` gets a plain `Node2D` and a sprite — no block, so it never joins the
+group and never reaches the simulation.
 
 The piece textures are the useful part day to day. Each is an `AtlasTexture` pointing at a region
 of its sheet, so they show up individually with thumbnails in Godot's FileSystem dock and can be
@@ -70,6 +91,39 @@ Each piece carries the three numbers the guess was made from:
 
 `circularity` is only meaningful on a roughly square box — an elongated piece reports values well
 above 1 because the inscribed circle is small. That is why the disc test checks squareness first.
+
+## The world scale is derived, not set
+
+`PieceImporter.art_scale()` works it out rather than storing it:
+
+```
+art_scale = ball diameter in world units / 250 source pixels
+```
+
+250 is the resting worm's diameter on the character sheet, measured — a fact about the art. The
+ball on screen *is* the worm, so once the ball's radius is fixed in the tuning, the scale for every
+other piece follows. At today's radius of 12 that is **0.096**, and the ball's radius works out to
+125 source pixels, which is what terrain closing uses.
+
+The useful consequence: if the tuning is ever rescaled, re-run the importer and every piece
+rescales with it, still matching the ball exactly. Nothing to keep in step by hand.
+
+## What the four kinds actually produce
+
+- **`CIRCLE`** becomes a regular polygon, because `ShapeBody` holds outlines and nothing else. The
+  number of sides is **computed from the radius**, not fixed: enough that no facet bulges more
+  than 0.4 world pixels from the true curve. A fixed count is wrong in both directions — 24 sides
+  wastes edges on a small bolt and is visibly faceted on a 1200-pixel flywheel.
+- **`RECT`** is the region's four corners.
+- **`POLYGON`** is the traced outline, **closed by the ball's radius** — offset outward by 125
+  source pixels and back in, which fills every pocket the ball physically cannot enter. Then
+  re-simplified, which matters: offsetting with round joins lays a fan of points around every
+  convex corner and inflates a 40-vertex piece to 290. That would quietly undo the vertex budget.
+- **`ANNULUS`** produces **no collision yet.** A ring the ball travels *inside* needs the ball
+  contained, and a `ShapeBody` outline pushes a ball *out*. It needs either an inverted body or the
+  ring built from overlapping rim segments. Three pieces are affected and no beat uses one yet.
+  Falling back to a solid disc would be worse than nothing — it fills the hole the ball is meant to
+  pass through, and the route closes for a reason nobody can see.
 
 ## Two constants that matter more than they look
 

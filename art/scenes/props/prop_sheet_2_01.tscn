@@ -1,0 +1,14 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://blocks/terrain_block.gd" id="1_patim"]
+[ext_resource type="Texture2D" path="res://art/pieces/props/prop_sheet_2_01.tres" id="2_28qqk"]
+
+[node name="prop_sheet_2_01" type="Polygon2D" unique_id=751884295]
+scale = Vector2(0.096, 0.096)
+polygon = PackedVector2Array(12.98183, 0.75572, 0.24849, 37.96839, 20.16382, 103.69682, 37.7238, 97.82734)
+script = ExtResource("1_patim")
+show_placeholder = false
+
+[node name="Art" type="Sprite2D" parent="." unique_id=490118520]
+texture = ExtResource("2_28qqk")
+centered = false
