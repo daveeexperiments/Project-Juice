@@ -62,6 +62,9 @@ func _build_world() -> void:
 		var block: TerrainBlock = node as TerrainBlock
 		if block == null or block.polygon.size() < 3:
 			continue
+		# A placement switched off is scenery: it keeps its art and never reaches the simulation.
+		if not block.collides:
+			continue
 		var shape: ShapeBody = block.build_shape(next_id)
 		world.shapes.append(shape)
 		_block_of[next_id] = block

@@ -39,6 +39,17 @@ const PAD_COILS: int = 9
 		smoothing = value
 		queue_redraw()
 
+## Whether THIS placement reaches the simulation. Off makes it scenery.
+##
+## The piece's `kind` in the manifest decides what a gear collides AS, and that is a property of
+## the piece -- change it once and every copy in every level follows. Whether a particular copy
+## collides at all is a different question, and it belongs here, because it is a property of where
+## the thing was put: the same gear is machinery in one beat and background in another.
+##
+## Without this the only way to make one instance decorative would be to change the piece globally
+## or delete its collision by hand, and the second would be lost the next time the importer ran.
+@export var collides: bool = true
+
 ## Draw the placeholder ink look. Off for a block that carries real art.
 ##
 ## The greybox drawing and the collision outline are the same polygon, which is what makes a

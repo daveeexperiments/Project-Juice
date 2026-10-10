@@ -146,6 +146,22 @@ piece lands at 38–54 vertices median, which is a comfortable budget for `Shape
 is O(edges). Lower it and outlines get expensive; raise it and silhouettes stop looking like
 themselves.
 
+## Two different questions about collision
+
+They get answered in two different places, and keeping them apart is what lets placement and
+collision be worked on by two people at once.
+
+**What does this piece collide AS?** A property of the *piece*. It lives in `art/manifest/`, and
+changing it there and re-importing updates every copy in every level. A gear is a disc everywhere
+or nowhere.
+
+**Does THIS copy collide at all?** A property of the *placement*. It is the `collides` checkbox on
+the placed node. Untick it and that instance keeps its art and never reaches the simulation —
+which is how the same gear is machinery in one beat and background in another.
+
+The practical consequence: **almost every collision fix happens without anyone touching the level
+file.** Place things, and corrections to how they collide arrive underneath you.
+
 ## Adding a sheet later
 
 Drop it in the folder that matches what it *is* — `terrain/`, `props/`, `character/` or `deco/` —

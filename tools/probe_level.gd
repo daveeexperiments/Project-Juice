@@ -47,6 +47,10 @@ func _initialize() -> void:
 		var block: TerrainBlock = node as TerrainBlock
 		if block == null or block.polygon.size() < 3:
 			continue
+		# Matches Level._build_world: a placement switched off is scenery. The probe has to agree
+		# with the game about what collides, or it checks a level nobody will ever play.
+		if not block.collides:
+			continue
 		world.shapes.append(block.build_shape(next_id))
 		next_id += 1
 
