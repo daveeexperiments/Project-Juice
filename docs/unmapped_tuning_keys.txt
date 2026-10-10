@@ -52,14 +52,6 @@ juice.surfaceMarks
 juice.trail
 juice.trailLength
 juice.trailMinSpeed
-lever.angularDamping
-lever.counterweight
-lever.impactStrength
-lever.massRocky
-lever.massSquishy
-lever.pivotFriction
-lever.plankMass
-lever.torqueScale
 padding.actorClearance
 padding.coverage
 padding.enabled

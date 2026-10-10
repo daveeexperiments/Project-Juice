@@ -343,6 +343,29 @@ extends Resource
 @export var cables_refills_charges: bool = true
 @export var cables_restores_elasticity: bool = false
 
+# ---------------------------------------------------------------- levers
+
+@export_group("Levers")
+## What each ball weighs as far as a plank is concerned. The whole lever puzzle is the gap: the
+## rocky ball tips a seesaw the squishy ball barely disturbs. Separate from the balls' own `mass`
+## so a lever can be rebalanced without changing what a ball weighs everywhere else.
+@export_range(0.0, 40.0, 0.1) var lever_mass_squishy: float = 1.0
+@export_range(0.0, 40.0, 0.1) var lever_mass_rocky: float = 6.0
+## The plank's own mass, which is all its resistance to being turned.
+@export_range(0.1, 40.0, 0.1) var lever_plank_mass: float = 2.5
+## Proportional damping on the swing, which settles it.
+@export_range(0.0, 20.0, 0.05) var lever_angular_damping: float = 2.2
+## A constant drag at the hinge, which brings a settling plank to a dead stop rather than letting
+## it creep.
+@export_range(0.0, 2000.0, 1.0) var lever_pivot_friction: float = 40.0
+## A weight hung on the A end, holding that side down until something outweighs it.
+@export_range(-40.0, 40.0, 0.1) var lever_counterweight: float = 0.0
+## How hard a landing kicks the plank, on top of the ball's standing weight.
+@export_range(0.0, 10.0, 0.05) var lever_impact_strength: float = 1.0
+## Scales every torque at once. The knob to reach for if levers feel uniformly too stiff or too
+## loose.
+@export_range(0.0, 10.0, 0.05) var lever_torque_scale: float = 1.0
+
 # ---------------------------------------------------------------- per-ball actor response
 
 @export_group("Ball vs actors")
@@ -613,6 +636,15 @@ const FIELD_BY_PATH: Dictionary = {
 	"rocky.glassBreakSpeedKeep": "rocky_glass_break_speed_keep",
 	"squishy.risingAssist": "squishy_rising_assist",
 	"rocky.risingAssist": "rocky_rising_assist",
+
+	"lever.massSquishy": "lever_mass_squishy",
+	"lever.massRocky": "lever_mass_rocky",
+	"lever.plankMass": "lever_plank_mass",
+	"lever.angularDamping": "lever_angular_damping",
+	"lever.pivotFriction": "lever_pivot_friction",
+	"lever.counterweight": "lever_counterweight",
+	"lever.impactStrength": "lever_impact_strength",
+	"lever.torqueScale": "lever_torque_scale",
 
 	# cables.clearAbove and cables.clearBelow are deliberately absent: they read as
 	# level-generation clearance rather than collision, and bending them into the one-way floor

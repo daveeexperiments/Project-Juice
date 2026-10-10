@@ -93,6 +93,13 @@ func _build_world() -> void:
 		world.fans.append(block.build_fan(next_id))
 		next_id += 1
 
+	for node: Node in get_tree().get_nodes_in_group(&"levers"):
+		var block: LeverBlock = node as LeverBlock
+		if block == null:
+			continue
+		world.levers.append(block.build_lever(next_id))
+		next_id += 1
+
 
 func _spawn_point() -> Vector2:
 	for node: Node in get_tree().get_nodes_in_group(&"spawn"):

@@ -16,6 +16,8 @@ var spikes: Array[SpikeStrip] = []
 var fans: Array[FanField] = []
 ## Slack ropes. These MOVE, so the prediction gets copies -- see `ghost()`.
 var cables: Array[Cable] = []
+## Planks on pivots. These move too, and for the same reason get copied.
+var levers: Array[Lever] = []
 ## Seconds since the level started. Unused until cycling fans arrive, but part of the contract.
 var time: float = 0.0
 ## Shape ids the PREDICTION has decided are broken. Empty for the real world.
@@ -42,22 +44,32 @@ func ghost() -> StepWorld:
 	copy.cables = []
 	for cable: Cable in cables:
 		copy.cables.append(cable.ghost_copy())
+	copy.levers = []
+	for lever: Lever in levers:
+		copy.levers.append(lever.ghost_copy())
 	return copy
 
 
-## Freeze every rope, so a run can be repeated from the same start. The tests use this to prove
-## the ghost and the ball agree; without it the second run would begin with ropes the first run
-## had already swung.
-func snapshot_cables() -> Array[Dictionary]:
-	var saved: Array[Dictionary] = []
+## Freeze every moving actor, so a run can be repeated from the same start. The tests use this to
+## prove the ghost and the ball agree; without it the second run would begin with ropes the first
+## run had already swung and planks it had already tipped.
+func snapshot_actors() -> Dictionary:
+	var ropes: Array[Dictionary] = []
 	for cable: Cable in cables:
-		saved.append(cable.snapshot())
-	return saved
+		ropes.append(cable.snapshot())
+	var planks: Array[Dictionary] = []
+	for lever: Lever in levers:
+		planks.append(lever.snapshot())
+	return {"cables": ropes, "levers": planks}
 
 
-func restore_cables(saved: Array[Dictionary]) -> void:
-	for i: int in mini(saved.size(), cables.size()):
-		cables[i].restore(saved[i])
+func restore_actors(saved: Dictionary) -> void:
+	var ropes: Array = saved["cables"] as Array
+	for i: int in mini(ropes.size(), cables.size()):
+		cables[i].restore(ropes[i] as Dictionary)
+	var planks: Array = saved["levers"] as Array
+	for i: int in mini(planks.size(), levers.size()):
+		levers[i].restore(planks[i] as Dictionary)
 
 
 ## Is this pane still standing, as far as this world is concerned?

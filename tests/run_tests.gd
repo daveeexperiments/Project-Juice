@@ -59,6 +59,9 @@ func _initialize() -> void:
 	print("\n cables")
 	_test_cables()
 
+	print("\n levers")
+	_test_levers()
+
 	print("\n trampolines")
 	_test_trampolines()
 
@@ -376,6 +379,100 @@ func _test_settle_comes_to_rest(world: StepWorld) -> void:
 # ---------------------------------------------------------------- helpers
 
 ## The real ball's side of a step: break a pane for good, and note spikes.
+# ---------------------------------------------------------------- levers
+
+func _test_levers() -> void:
+	var t: TuningData = TuningData.get_active()
+	var squishy: BallForm = BallForm.make(BallForm.SQUISHY)
+	var rocky: BallForm = BallForm.make(BallForm.ROCKY)
+
+	# The puzzle: the rocky ball's 6 against the squishy ball's 1. Measured as time-to-the-stop
+	# rather than as a final angle, deliberately -- at the shipped torqueScale of 1 BOTH balls
+	# drive the plank to its limit, so where it ends up cannot tell them apart but how fast it got
+	# there can. That saturation is also the clearest sign that torqueScale is carrying a units
+	# conversion in the original; see the note in core/lever.gd.
+	var squishy_steps: int = _steps_to_tilt_limit(_lever_world(), squishy, Vector2(560.0, 300.0))
+	var rocky_steps: int = _steps_to_tilt_limit(_lever_world(), rocky, Vector2(560.0, 300.0))
+	_check(
+		"the rocky ball tips a plank harder than the squishy ball",
+		rocky_steps < squishy_steps,
+		"%d steps to the stop under rocky, %d under squishy" % [rocky_steps, squishy_steps],
+	)
+
+	# A counterweight on the far end holds that side down until something outweighs it.
+	var saved: Dictionary = _apply({"lever_counterweight": 20.0})
+	var held: StepWorld = _lever_world()
+	_run_from(held, squishy, Vector2(560.0, 300.0), Vector2.ZERO, 1.5)
+	var tipped_against: float = held.levers[0].angle
+	_restore(saved)
+	_check(
+		"a counterweight holds its side down against a light ball",
+		tipped_against < 0.0,
+		"%.1f deg: the weighted end stayed down" % rad_to_deg(tipped_against),
+	)
+
+	# The stop is a stop, whatever is piled on it.
+	var slammed: StepWorld = _lever_world()
+	_run_from(slammed, rocky, Vector2(560.0, 200.0), Vector2(0.0, 400.0), 2.0)
+	_check(
+		"a plank never tips past its limit",
+		absf(slammed.levers[0].angle) <= slammed.levers[0].max_tilt + TOLERANCE,
+		"%.2f deg, limit %.2f" % [rad_to_deg(slammed.levers[0].angle), rad_to_deg(slammed.levers[0].max_tilt)],
+	)
+
+	# Left alone it comes to a dead stop rather than creeping for ever.
+	var swinging: StepWorld = _lever_world()
+	swinging.levers[0].angular_velocity = 3.0
+	var dt: float = t.fixed_delta()
+	for _i: int in 600:
+		swinging.levers[0].step(dt)
+	_check(
+		"a plank left alone settles",
+		is_zero_approx(swinging.levers[0].angular_velocity),
+		"%.6f rad/s after 5 s" % swinging.levers[0].angular_velocity,
+	)
+
+	# Same architectural property cables have, and for the same reason.
+	var live: StepWorld = _lever_world()
+	var angle_before: float = live.levers[0].angle
+	var preview: TrajectoryPreview = TrajectoryPreview.new()
+	preview._ready()
+	preview.simulate(rocky, Vector2(560.0, 300.0), Vector2(0.0, 200.0), live)
+	preview.free()
+	_check(
+		"a prediction leaves the real plank exactly where it was",
+		is_equal_approx(live.levers[0].angle, angle_before),
+		"still at %.6f rad after a preview that lands on it" % live.levers[0].angle,
+	)
+
+	_test_prediction_through_actors("a lever", _lever_world(), rocky, Vector2(560.0, 300.0), Vector2(0.0, 200.0))
+
+
+## A room with one plank pivoted in the middle of it.
+func _lever_world() -> StepWorld:
+	var world: StepWorld = _plain_room()
+	world.levers.append(Lever.new(1, Vector2(500.0, 700.0), 90.0, 6.0, 35.0))
+	return world
+
+
+## How many steps it takes the ball to drive the plank to its stop. Returns the cap if it never
+## gets there.
+func _steps_to_tilt_limit(world: StepWorld, form: BallForm, from: Vector2) -> int:
+	var state: BallState = BallState.new()
+	state.x = from.x
+	state.y = from.y
+	state.ground_material = SurfaceKind.NONE
+	var lever: Lever = world.levers[0]
+	var dt: float = TuningData.get_active().fixed_delta()
+	var cap: int = 900
+	for i: int in cap:
+		if not BallSim.step_ball(state, form, world, dt, null):
+			return cap
+		if absf(lever.angle) >= lever.max_tilt - 0.0001:
+			return i
+	return cap
+
+
 # ---------------------------------------------------------------- cables
 
 func _test_cables() -> void:
@@ -798,12 +895,12 @@ func _test_prediction_through_actors(
 	from: Vector2,
 	velocity: Vector2,
 ) -> void:
-	var ropes: Array[Dictionary] = world.snapshot_cables()
+	var ropes: Dictionary = world.snapshot_actors()
 	var preview: TrajectoryPreview = TrajectoryPreview.new()
 	preview._ready()
 	var predicted: PackedVector2Array = preview.simulate(form, from, velocity, world)
 	preview.free()
-	world.restore_cables(ropes)
+	world.restore_actors(ropes)
 
 	var state: BallState = BallState.new()
 	state.x = from.x
@@ -821,7 +918,7 @@ func _test_prediction_through_actors(
 		if i < last:
 			worst = maxf(worst, Vector2(state.x, state.y).distance_to(predicted[i]))
 
-	world.restore_cables(ropes)
+	world.restore_actors(ropes)
 	_check(
 		"prediction stays exact through %s" % label,
 		worst <= TOLERANCE,

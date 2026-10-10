@@ -26,10 +26,11 @@ const RESOLVE_PASSES: int = 4
 static func step_ball(state: BallState, form: BallForm, world: StepWorld, dt: float, policy: StepPolicy) -> bool:
 	var t: TuningData = TuningData.get_active()
 
-	# The ropes swing first, ONCE per step and never per substep, so the ball and the ghost always
-	# meet the rope in the same place at the same time. Stepping it inside the substep loop would
-	# advance the rope further for a fast ball than a slow one.
+	# The moving actors advance first, ONCE per step and never per substep, so the ball and the
+	# ghost always meet them in the same place at the same time. Stepping them inside the substep
+	# loop would advance them further for a fast ball than a slow one.
 	_step_cables(world, dt)
+	_step_levers(world, dt)
 
 	# Moving air next, so it is part of the same forces phase as gravity and the two can cancel:
 	# a squishy ball in an upward stream hovers because the push and the weight land in the same
@@ -108,7 +109,12 @@ static func _resolve_contacts(state: BallState, form: BallForm, world: StepWorld
 				return false
 			continue
 
-		# Levers join here in a later phase.
+		var plank: Array = find_lever_contact(state, form, world)
+		if not plank.is_empty():
+			if not _respond_to_lever(state, form, plank[0] as Lever, plank[1] as Dictionary, policy):
+				return false
+			continue
+
 		var found: Array = find_shape_contact(state, form, world)
 		if found.is_empty():
 			return true
@@ -255,6 +261,86 @@ static func fan_support(state: BallState, form: BallForm, world: StepWorld) -> b
 		if fan.is_launchable_stream(state.x, state.y, form, world):
 			return true
 	return false
+
+
+# ---------------------------------------------------------------- levers
+
+## Tip every plank by one step. Called once per `step_ball`, never per substep.
+static func _step_levers(world: StepWorld, dt: float) -> void:
+	for lever: Lever in world.levers:
+		lever.step(dt)
+
+
+## The deepest plank contact, or [] when the ball is clear of them all.
+static func find_lever_contact(state: BallState, form: BallForm, world: StepWorld) -> Array:
+	var best_lever: Lever = null
+	var best_hit: Dictionary = {}
+	for lever: Lever in world.levers:
+		var hit: Dictionary = lever.contact_for(state.x, state.y, form.radius)
+		if hit.is_empty():
+			continue
+		if best_hit.is_empty() or (hit["depth"] as float) > (best_hit["depth"] as float):
+			best_lever = lever
+			best_hit = hit
+	if best_hit.is_empty():
+		return []
+	return [best_lever, best_hit]
+
+
+## Land on a plank. The ball bounces off it and loads it at the same time, which is the two-way
+## coupling that makes a lever a lever rather than a moving floor.
+##
+## The bounce is measured against the plank's own surface speed, not against the world, so a
+## plank tipping away from the ball does not hit it as hard as a plank tipping into it. Without
+## that a lever on the way down would still bounce a ball as if it were static.
+static func _respond_to_lever(
+	state: BallState,
+	form: BallForm,
+	lever: Lever,
+	hit: Dictionary,
+	policy: StepPolicy,
+) -> bool:
+	var n: Vector2 = hit["normal"] as Vector2
+	var point: Vector2 = hit["point"] as Vector2
+	state.x += n.x * (hit["depth"] as float)
+	state.y += n.y * (hit["depth"] as float)
+
+	# The ball's weight bears on the plank for as long as it is touching, bounce or no bounce.
+	lever.load_from(point, form)
+
+	var surface: Vector2 = lever.surface_velocity_at(point)
+	var relative_x: float = state.vx - surface.x
+	var relative_y: float = state.vy - surface.y
+	var vn: float = relative_x * n.x + relative_y * n.y
+	if vn >= 0.0:
+		return true
+	var impact_speed: float = -vn
+
+	# A landing kicks it as well as loading it.
+	lever.strike(point, form, impact_speed)
+
+	var restitution: float = restitution_for(form, SurfaceKind.WALL)
+	var out_speed: float = impact_speed * restitution
+	if out_speed < form.stop_bounce_threshold:
+		out_speed = 0.0
+	# Applied to the RELATIVE velocity, then handed back to the world, so the plank carries the
+	# ball with it instead of sliding out from under it.
+	relative_x += n.x * (out_speed - vn)
+	relative_y += n.y * (out_speed - vn)
+	state.vx = relative_x + surface.x
+	state.vy = relative_y + surface.y
+
+	var landing: bool = is_horizontal_surface(n.y)
+	if landing:
+		_apply_tangential_friction(state, n.x, n.y, form.landing_friction)
+
+	if policy != null:
+		var contact: Contact = Contact.make(
+			state, n.x, n.y, SurfaceKind.WALL, impact_speed, out_speed,
+			impact_speed > form.stop_bounce_threshold, landing,
+		)
+		return policy.on_contact(contact)
+	return true
 
 
 # ---------------------------------------------------------------- cables
@@ -666,6 +752,16 @@ static func ground_under(state: BallState, form: BallForm, world: StepWorld) -> 
 		var n: Vector2 = hit["normal"] as Vector2
 		if n.y < -0.4:
 			return [SurfaceKind.CABLE, n.y]
+
+	# A plank is a floor too, and a tilting one is a floor that can be launched from, which is how
+	# a lever becomes a route rather than just a thing that moves.
+	for lever: Lever in world.levers:
+		var plank: Dictionary = lever.contact_for(state.x, probe_y, form.radius)
+		if plank.is_empty():
+			continue
+		var pn: Vector2 = plank["normal"] as Vector2
+		if pn.y < -0.4:
+			return [SurfaceKind.WALL, pn.y]
 	return [SurfaceKind.NONE, 0.0]
 
 
