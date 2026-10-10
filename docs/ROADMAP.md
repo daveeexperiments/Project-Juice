@@ -15,9 +15,9 @@ mechanic, not a feature. Every decision below is downstream of keeping the ghost
 | Movement | **Slingshot only.** No walking, no jumping. | No character controller. The sim's movement model is unchanged. Level design stays a precision-aiming puzzle. |
 | Physics | **Keep the custom sim.** Not Godot physics. | Prediction stays exact. The cost is that broadphase and rotating bodies are ours to build — Godot would have given those away free. |
 | Collision | **Authored, not derived.** Primitives for props; simplified, radius-closed polygons for terrain. | See below. This is the decision everything else hangs off. |
-| Art delivery | **SVG per piece with named layers, plus PNG at a fixed scale.** | Layer names drive which collision primitive a piece gets. Where a polygon is needed, the SVG path beats tracing pixels. |
+| Art delivery | **The sheets as delivered. No requests go back to the designer.** PNG pages, transparent, 4096². | Every adaptation happens in Godot. No layer-name convention, no per-piece SVG, no re-exports — so classification and collision are driven by a **manifest we own**, not by metadata in the art. See "The manifest". |
 | Build order | **Greybox first, art second.** Each beat is playable in plain blocks before any sprite touches it. | Level building starts immediately with tools that already exist, instead of waiting on the pipeline. See "How we build the level". |
-| Ball names | **Squishy and Rocky.** | The code keeps the names it has, including the Phaser-inherited tuning keys (`rocky.cableBounce` and friends). The designer's notes say "Heavy" — that needs passing on, so layer names and future notes line up. |
+| Ball names | **Squishy and Rocky.** | The code keeps the names it has, including the Phaser-inherited tuning keys (`rocky.cableBounce` and friends). The designer's notes say "Heavy"; that is just a synonym to read through, not something to correct. |
 | World scale | **k = 2.5.** Ball 60 px on screen, source art imported at 24%. | A uniform multiply of every length, speed and acceleration; times untouched. See "The world scale is k = 2.5". |
 | Many cables | **Sleeping, not approximation.** A rope that is not moving stops being simulated until something touches it. | The field becomes affordable *without* costing prediction exactness, because a sleeping rope genuinely is not moving. See "The cable field". |
 | The auto-bounce shaft | **Constructed, not tuned.** Per-pad `horizontal_keep = 0` and `impact_bonus = 0`. | The bounce is deterministic by construction rather than by careful tuning, so it cannot drift. See "The auto-bounce shaft". |
@@ -53,10 +53,10 @@ detail that would wreck the physics.
 Only the **terrain blobs** genuinely need polygons. That shrinks the hard part of the pipeline to
 one category, and most of the designer's moving parts map onto systems that already exist.
 
-**The exception to settle deliberately:** the hollow spiky gears, and the ring the player passes
-*inside*. That is an annulus — the ball touches the inner surface — and `ShapeBody` holds a single
-closed outline with no hole support. It needs an explicit answer rather than falling out of the
-pipeline.
+**The one exception:** the hollow spiky gears, and the ring the player passes *inside*. That is an
+annulus — the ball touches the inner surface — and `ShapeBody` holds a single closed outline with no
+hole support. It gets an explicit answer in the manifest rather than falling out of the pipeline:
+two radii, two circles, one of them inverted.
 
 ### Slicing a sheet: `BitMap.opaque_to_polygons` does it, and more
 
@@ -82,15 +82,23 @@ Better still, it is not only a slicer. One call gives both halves of a piece:
 - the polygon **itself** → the collision outline, already simplified, ready to be closed by the
   ball radius
 
-**This requires a transparent background.** The test sheet was ink on opaque white, so the mask had
-to be built by thresholding on *darkness* — which works for black ink and breaks the moment art is
-coloured. The worm is pink and purple and several props have light fills; those would vanish from a
-darkness threshold. With alpha, it is `BitMap.create_from_image_alpha()` and no guessing. **Ask the
-designer for transparent-background exports.**
+**This requires a transparent background, and the delivered sheets have one.** All six came through
+with alpha, so it is `BitMap.create_from_image_alpha()` and no guessing. Worth recording why that
+mattered: the early test sheet was ink on opaque white, so the mask had to be built by thresholding
+on *darkness*, which works for black ink and silently drops anything light-coloured — the pink and
+purple worm, the props with pale fills. Those would simply have vanished. The alpha path removes the
+whole class of problem, and nothing needs to be asked for.
 
-Two things still unverified: `epsilon` is in source pixels so it scales with *k*, and it is not yet
-known what `opaque_to_polygons` does with a *hole* — which matters for the hollow gears and the ring
-the player passes inside. Test that on a real ring rather than assuming.
+Also note that **alpha tracing is now the only terrain path**, not a fallback behind SVG paths. That
+is fine, and the measurement above is why: at epsilon ≈ 8 a traced 4096 px terrain piece lands at
+40–58 vertices, which is the budget we wanted anyway. The thing SVG would have bought is precision
+we do not need, because the outline is about to be radius-closed and deliberately made to disagree
+with the art.
+
+One thing still unverified, and it cannot be answered by asking: what `opaque_to_polygons` does with
+a **hole** — which decides the hollow gears and the ring the ball passes inside. Test it on a real
+ring. If it returns only the outer boundary, the manifest answer below handles it without any
+geometry work at all.
 
 ### What the delivered sheets actually contain
 
@@ -115,6 +123,51 @@ tracing teeth would have caused. A circle is one number.
 
 **Four shapes on Prop Sheet 1 have a 1 px bounding box** — stray pixels or antialiasing residue.
 The importer needs a minimum-area filter, or they become four invisible collision bodies.
+
+### The manifest: how a piece gets its collision, with no help from the art
+
+The earlier plan had the designer name layers (`gear_`, `vent_`, `deco_`) and let the name pick the
+collision primitive. That is off the table: the art is final and nothing goes back to them. The
+sheets carry no names, no layers and no metadata — 51 terrain pieces and 115 props as anonymous
+blobs of alpha.
+
+So the classification has to live on our side, and the right place for it is a **manifest**: one
+checked-in resource listing every piece, its atlas region, and the collision it gets.
+
+```
+res://art/manifest/props_sheet_1.tres
+  piece 00  rect(128, 96, 412, 410)   kind = circle   r = 203
+  piece 01  rect(602, 110, 96, 388)   kind = rect
+  piece 02  rect(730, 96, 410, 404)   kind = annulus  r_outer = 202  r_inner = 141
+  ...
+```
+
+Three properties make this the right shape for the problem:
+
+- **The importer guesses, a human confirms.** Shape classification is measurable, so the first pass
+  is automatic: compare a piece's area against its bounding circle and count its outline vertices,
+  and a gear or a saw blade is obvious — high vertex count, area close to a perfect disc. Aspect
+  ratio plus near-full box fill means rectangle. Everything else falls out as a polygon to review.
+  That turns 115 props into a handful of corrections rather than 115 decisions.
+- **It is idempotent.** Re-running the importer regenerates the atlas regions and outlines but
+  *keeps* the manifest's `kind` values. Nothing hand-decided is ever lost to a re-import, which is
+  the failure that makes most art pipelines quietly unusable after a month.
+- **It is reviewable in a diff.** A collision change on a piece shows up in version control as a
+  one-line change in a text resource, which is exactly what Risk 1 — art and collision drifting
+  apart — needs in order to be noticeable.
+
+Two things the manifest answers for free:
+
+**The annulus.** A ring the ball travels inside needs no hole support anywhere in the geometry
+pipeline. It is `kind = annulus` with two radii, both measured off the sliced piece, and the
+collision is two circles — one solid, one inverted. The geometry question was only ever hard
+because we were trying to derive it; authored, it is two numbers.
+
+**`deco/`.** Nothing in the sheets marks a piece as decoration, and on reflection nothing *should*:
+the same gear is machinery in one beat and background in another. So `kind` in the manifest is the
+piece's **default**, overridable per placement. The folder still decides terrain-versus-prop, which
+is a property of the piece; whether a given instance reaches the simulation is a property of where
+it is put.
 
 ### The world scale, from the character sheet
 
@@ -189,9 +242,11 @@ for both forms.
 
 ### The quiet benefit
 
-Once collision is authored rather than traced, the art is **free**. The ink edges can be as grainy
-and detailed as the designer likes, because none of it reaches the sim. Worth telling them: it
-removes a constraint they may be working under.
+Once collision is authored rather than traced, the art is **free** — and since the art is final,
+that is the property doing the real work here. Every grainy ink edge, every gear tooth, every
+pale fill is detail that never reaches the simulation and therefore cannot cost us anything. The
+pipeline does not need the art to be shaped a particular way, which is exactly why no requests have
+to go back.
 
 ---
 
@@ -285,7 +340,10 @@ Two consequences for the visual layer, neither of which touches the sim:
 
 - The morph frames stick out past the collision circle, so switching while resting against a
   surface will overlap it. Over a couple of hundred milliseconds that reads as squash rather than
-  clipping — accept it, and ask the designer to keep the morph's extent modest.
+  clipping, so accept it. The frames are what they are and will not be redrawn, so the two levers
+  we do have are both ours: the orientation rule above, which turns the stretch along the surface
+  instead of into it, and `fx.switchPopMs`, which decides how long any overlap is on screen. A
+  shorter morph is a smaller problem.
 - The morph must survive interruption. Switch twice quickly and the sim is already in the new form
   while the animation is half-way through; the visual layer plays on from where it is, or reverses.
 
@@ -377,17 +435,21 @@ a hundred pieces exist. **Pick k in Phase 0 and tell the designer the number.**
 
 ## Phase 1 — the art pipeline
 
-- **A naming convention, agreed with the designer, before the next batch of art.** Layer names are
-  the only structure that survives the export, so they carry the piece's kind — and the kind picks
-  the collision primitive. `gear_`, `pipe_`, `vent_`, `spring_`, `chain_`, `terrain_`, `deco_`.
-  `deco_` is the important one: it means "never reaches the sim".
-- **An importer** that turns a delivered piece into a Godot scene: sprite plus the right collision
-  for its kind. Built on the existing `@tool` block pattern so pieces stay editable in the viewport.
+- **The slicer.** `opaque_to_polygons` over each sheet, with the minimum-area filter, producing an
+  atlas region and a simplified outline per piece. Pieces must be ordered **deterministically** —
+  sorted row-major by bounding box, not by whatever order the call happens to return — because that
+  order is what the manifest keys on.
+- **The manifest and its classifier**, above. The guess is a measurement; the corrections are a
+  short editor pass; the result is checked in.
+- **An importer** that turns a manifest entry into a Godot scene: sprite plus the collision its
+  `kind` says. Built on the existing `@tool` block pattern so pieces stay editable in the viewport.
   For everything except terrain this is a primitive and needs no geometry work at all.
-- **The terrain path only:** SVG path (preferred) or alpha trace (fallback) → simplify → close by
-  ball radius → vertex budget warning. The budget serves feel *and* performance at once, since
-  `ShapeBody.contact` is O(edges).
-- **The overlay** from Risk 1.
+- **The terrain path only:** alpha trace → simplify at epsilon ≈ 8 → close by the ball radius →
+  vertex budget warning. The budget serves feel *and* performance at once, since `ShapeBody.contact`
+  is O(edges).
+- **The overlay** from Risk 1. With no layer names to cross-check against, this is the *only* thing
+  that catches a piece whose collision is wrong, so it moves up in importance rather than being a
+  nicety.
 
 ---
 
@@ -600,9 +662,10 @@ actions are in a strict order, because each one would have to be redone if it ca
    relative, so a correct uniform transform leaves all 81 checks green, and *any* number missed or
    any time value scaled by mistake shows up as a failure. That is the whole reason to do it as its
    own commit with nothing else in it.
-2. **The importer.** Slice the six delivered sheets into piece scenes with per-kind collision. It
-   needs the scale from step 1 for the closing radius and for `epsilon`, and it needs the
-   minimum-area filter that the 1 px specks on Prop Sheet 1 proved necessary.
+2. **The slicer, the manifest, then the importer** — in that order, because each feeds the next.
+   Slice the six sheets deterministically with the minimum-area filter that the 1 px specks on Prop
+   Sheet 1 proved necessary; generate the manifest with guessed collision kinds; review the guesses;
+   build piece scenes from it. Needs the scale from step 1 for the closing radius and for `epsilon`.
 3. **Greybox beat 1** — launch, land on the chimney, do not touch the gears — in a new scene file,
    built from existing blocks, for playtesting. Then the loop in "Who does what" takes over.
 
