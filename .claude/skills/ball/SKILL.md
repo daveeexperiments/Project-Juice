@@ -73,6 +73,37 @@ Per-object variation is *not* a tuning number — it is a property of the placed
 pad's `launch_speed`, a cable's `slack`, or a lever's tilt limit. Default those to `-1` meaning
 "use the global".
 
+## The character is a circle, whatever the sprite does
+
+The player is an animated sprite — a one-eyed creature that squashes, stretches and elongates.
+None of that reaches the simulation.
+
+> **The collision shape is a circle of `form.radius`. Always. The sprite never drives it.**
+
+Pink-dominant is Squishy, green-dominant is Rocky, and they are the **same size** — the form switch
+is the fur retracting, not the ball changing scale. Keep the two radii equal. An 8% difference is
+invisible on screen and decisive in a tight gap, which reads as a bug rather than a rule.
+
+Three things that are easy to get wrong, and all of them are visual-only:
+
+- **Never transform-rotate the character.** One eye means free rotation spends half its arc upside
+  down. Airborne, face the velocity vector. Grounded, play a roll cycle driven by `state.spin` —
+  which already accumulates as `vx / radius * dt`, so it *is* the rolled angle and needs no new
+  state.
+- **Stretch backwards from the leading edge.** Scaling about the centre pushes the nose past the
+  collision circle, so at speed the character visibly enters a wall before the physics stops it.
+- **Collision is the body, not the fur.** Fur overlapping a surface reads as soft; fur holding the
+  character off a surface reads as floating.
+
+Visuals read simulation state and never write it. The visual state machine belongs in its own node,
+not in `ball/ball.gd`, and its state *selection* should be a pure function so it can be tested like
+everything else. `Contact` is already the trigger payload — it carries `impact_speed`, `material`,
+`landing`, `boosted`, `launched_off` and `broke_glass`.
+
+**Animation must never gate gameplay.** No waiting on a wind-up frame before a shot goes. The
+moment input waits on animation, the prediction is a lie. The form switch is instant in the sim;
+any pop is cosmetic.
+
 ## The actual game: the per-ball split
 
 The physics never asks which form it is. It asks what the form *does* — `form.breaks_glass`,

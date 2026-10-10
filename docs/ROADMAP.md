@@ -75,6 +75,85 @@ removes a constraint they may be working under.
 
 ---
 
+## The character
+
+The player is no longer a drawn circle. It is an animated sprite with states — a fuzzy creature
+with one eye, which deforms as it flies but reads as a circle.
+
+**Pink-dominant is Squishy, green-dominant is Rocky, and both are the same size.** The form switch
+is the fur: soft and out versus dense and in. That is a strong piece of design, because the player
+reads the current form instantly with no UI at all.
+
+### Same radius in both — unify the tuning
+
+The tuning currently has `squishy.radius` 12 and `rocky.radius` 11. The art says they are the same
+circle, so these should become one number.
+
+This is worth doing for its own sake, not just to match the art. **An 8% size difference is
+invisible to the eye and decisive in a tight gap** — a gap Rocky fits through and Squishy does not,
+with nothing on screen to explain why. That is an unfair rule, and unfair rules in a precision game
+read as bugs.
+
+It also removes a whole class of edge case: `Ball._resolve_overlap` exists because switching to a
+*larger* form mid-air can leave the ball inside a wall, and it pushes outward in rings until it
+finds space. With equal radii that can no longer happen. The code stays as a guard; the situation
+stops arising.
+
+The final value waits on the world-scale decision, since *k* scales it with everything else.
+
+### The sprite never drives the collision
+
+> **The collision shape is a circle of `form.radius`. Always.** The sprite squashes, stretches and
+> elongates; the sim does not notice.
+
+Same principle as the terrain, applied to the player. Three consequences that are easy to get
+wrong:
+
+- **Never transform-rotate the character.** One eye means free rotation spends half its arc upside
+  down. Airborne, orient the sprite along the velocity vector so the eye leads. Grounded, play a
+  roll cycle — and `state.spin` already drives it for free, because it accumulates as
+  `vx / radius * dt`, which *is* the rolled angle. `spin` stays in the sim untouched and feeds a
+  frame index instead of a rotation.
+- **Stretch backwards from the leading edge, not symmetrically about the centre.** Scale about the
+  centre and both ends grow, so the nose juts past the collision circle by `(stretch − 1) × r` and
+  visibly buries itself in a wall a frame before the physics stops it. Anchor the leading edge at
+  the collision boundary and let the tail stretch behind; the trailing stretch is what reads as
+  speed anyway.
+- **Let the fur overlap surfaces.** Collision is the body, not the halo. Fur squashing *into* a
+  surface reads as soft; fur holding the character off a surface reads as floating.
+
+### Two state machines, flowing one way
+
+The sim has form, grounded, held, settle hops and contacts. The visuals have idle, aiming, launch,
+flying, impact, rolling, switch, break, death, respawn. **The visual machine is driven by the sim
+and never the reverse.**
+
+It lives in its own node (`BallVisuals`), not in `ball.gd`, so the simulation file stays about
+simulation and the art is swappable. The state *selection* should be a pure function — given
+`BallState`, form and the last contact, return a visual state — so it is unit-testable like
+everything else here, even though the animation is not.
+
+`Contact` is already the animation trigger payload: it carries `impact_speed`, `material`,
+`landing`, `boosted`, `launched_off` and `broke_glass`. That is enough to pick an impact animation
+*and* scale its intensity, with no new event system.
+
+### Animation must never gate gameplay
+
+No "play the wind-up, then launch". The moment a shot waits on an animation frame the prediction
+becomes a lie and the input feels laggy — and the prediction being honest is the whole game.
+Anticipation is cosmetic: the sim acts immediately and the art catches up.
+
+The form switch is the sharp case. In the sim it is instant; gravity changes that frame. The art
+will want a pop, and that pop is cosmetic only. The original design agreed — `fx.switchPopMs` and
+`fx.switchPopScale` are sitting in the unmapped tuning keys.
+
+### The ball sprite is the scale reference
+
+It is on screen 100% of the time, and *k* falls out of its width. That makes it the **first** art
+to lock, not the last.
+
+---
+
 ## The three risks, in the order they will bite
 
 ### Risk 1 — art and collision drift apart
