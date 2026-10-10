@@ -16,6 +16,12 @@ names are written out.
 
 **Reference only.** Nothing in the game reads this folder. Deleting it breaks nothing.
 
+That is also why there is a `.gdignore` here. Without it Godot treats these as game art and imports
+all 162, which produces 162 `.import` sidecars, 162 entries in the resource cache, and a diff of
+several thousand lines every time someone opens the project — for images no scene will ever
+reference. `.gdignore` makes Godot skip the directory entirely; they stay perfectly good PNGs to
+anything else that opens them.
+
 ## Regenerating
 
 ```bash
