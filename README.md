@@ -55,8 +55,17 @@ exactness**: the ghost line and the real ball run the same `BallSim.step_ball`, 
 shot and the shot itself must match step for step — anything other than zero means the two have
 been allowed to drift apart.
 
-If you add a script with a new `class_name`, run `godot --headless --path . --import` once so
-Godot registers it before the tests can see it.
+If you add a script with a new `class_name`, run `godot --headless --editor --quit --path .` once
+so Godot writes it into the class cache — a `--script` run reads that cache and cannot see new
+global classes without it.
+
+`.github/workflows/tests.yml` runs the same suite on every push and pull request, pinned to Godot
+4.7.2 because the prediction checks assert exact float equality. It does **not** trust the exit
+code alone: a script that fails to compile anywhere in the project makes the tests that use it
+crash and vanish while the runner still prints "PASSED" and exits 0 — breaking `core/cable.gd` on
+purpose dropped the count from 81 to 72 with a zero status. So the workflow also fails on any
+compile or runtime script error, and on the check count falling below `MIN_CHECKS`. Raise that
+number when you add checks; never lower it to turn a red build green.
 
 ## Layout
 
