@@ -18,6 +18,10 @@ mechanic, not a feature. Every decision below is downstream of keeping the ghost
 | Art delivery | **SVG per piece with named layers, plus PNG at a fixed scale.** | Layer names drive which collision primitive a piece gets. Where a polygon is needed, the SVG path beats tracing pixels. |
 | Build order | **Greybox first, art second.** Each beat is playable in plain blocks before any sprite touches it. | Level building starts immediately with tools that already exist, instead of waiting on the pipeline. See "How we build the level". |
 | Ball names | **Squishy and Rocky.** | The code keeps the names it has, including the Phaser-inherited tuning keys (`rocky.cableBounce` and friends). The designer's notes say "Heavy" — that needs passing on, so layer names and future notes line up. |
+| World scale | **k = 2.5.** Ball 60 px on screen, source art imported at 24%. | A uniform multiply of every length, speed and acceleration; times untouched. See "The world scale is k = 2.5". |
+| Many cables | **Sleeping, not approximation.** A rope that is not moving stops being simulated until something touches it. | The field becomes affordable *without* costing prediction exactness, because a sleeping rope genuinely is not moving. See "The cable field". |
+| The auto-bounce shaft | **Constructed, not tuned.** Per-pad `horizontal_keep = 0` and `impact_bonus = 0`. | The bounce is deterministic by construction rather than by careful tuning, so it cannot drift. See "The auto-bounce shaft". |
+| Level assembly | **One continuous composition built from instanced beat scenes.** | Visually seamless and faithful to the designer's layout, while every beat stays separately openable and testable. See "How we build the level". |
 
 ---
 
@@ -134,9 +138,32 @@ size:
 | On-screen ball | k | Art scale |
 |---|---|---|
 | 48 px | 2 | 19% |
+| **60 px** | **2.5** | **24%** |
 | 64 px | ~2.7 | 26% |
 | 96 px | 4 | 38% |
 | 128 px | ~5.3 | 51% |
+
+### The world scale is k = 2.5
+
+**Ball 60 px across on screen, source art imported at 24%.** Locked, because every beat built
+before the decision would have to be rescaled afterwards, and the transform is cheap now and
+expensive after a hundred pieces exist.
+
+Why 2.5 and not larger, which was the earlier instinct:
+
+- **The preview needs room.** A full launch is 1000 px/s under 1200 px/s² gravity — the ghost line
+  for a strong shot spans several hundred prototype pixels. The arc must be visible *and* its
+  landing point legible at the same time. At k = 4 the same shot needs over three thousand screen
+  pixels of arc to read, and the camera is forced so far out that the 96 px ball stops feeling big
+  anyway. Scale buys nothing once the thing you are aiming with no longer fits on screen.
+- **60 px is not a small protagonist.** It is a sixth of a 1080 p screen's height. The prototype's
+  24 px ball felt small because it was a flat circle, not because of its size.
+- **2.5 keeps the tuning readable**, which matters because the brief is that these numbers stay
+  hand-editable. Gravity 1200 → 3000, full launch 1000 → 2500, radius 12 → 30. Round numbers that
+  can still be reasoned about by eye.
+
+It is one constant in one transform script and nothing is built on it yet, so it is still a cheap
+number to change — but it stops being cheap the moment the first beat is dressed.
 
 **The morph's extent is now quantified, and it changes the earlier advice.** At its longest the
 worm is 491 px against a 250 px resting circle — it reaches roughly a full radius past the
@@ -197,7 +224,11 @@ It also removes a whole class of edge case: `Ball._resolve_overlap` exists becau
 finds space. With equal radii that can no longer happen. The code stays as a guard; the situation
 stops arising.
 
-The final value waits on the world-scale decision, since *k* scales it with everything else.
+With k = 2.5 the unified value is **30**: one `radius` for both forms, 60 px across on screen.
+
+Note which radius the terrain closing uses. Today it must use the *larger* of the two (squishy's
+12) so one outline is safe for both forms; once they are equal that caveat disappears and the
+closing radius is simply the ball's radius.
 
 ### The sprite never drives the collision
 
@@ -364,10 +395,46 @@ a hundred pieces exist. **Pick k in Phase 0 and tell the designer the number.**
 
 - **Broadphase.** A uniform spatial hash is the right first choice: the level is mostly static, the
   ball is a point query, and it is a day's work. Bucket by the ball's radius.
+- **Cable sleeping**, below — the cable field is the one piece of the composition that is a
+  performance problem by itself, independent of level size.
 - **The pocket detector** from Risk 2, in the test suite.
 - **Shape caching.** Make sure `smooth_closed_polygon` runs once on load, not per frame.
 - **A performance test in the suite**, so a regression is a red build rather than a bad feeling six
   weeks later.
+
+### The cable field
+
+The composition has a dense field of hanging cables in the middle of the level. Costed out, that is
+a problem on its own: a rope is Verlet-integrated with `RELAX_PASSES = 3` constraint passes per
+step, and the trajectory preview re-steps the whole world for every frame of aiming. Tens of ropes
+multiplied by the preview's step budget multiplied by three relax passes lands in the high hundreds
+of thousands of constraint solves **per aiming frame**. Aiming would be the slowest thing in the
+game.
+
+The answer is the one every physics engine reaches for — Box2D, PhysX, Havok, Unity and Unreal all
+ship it — and it is **sleeping**, not approximation:
+
+> A rope whose largest knot movement stays below a threshold for N consecutive steps stops being
+> integrated. It wakes when something touches it.
+
+Why sleeping rather than a cheaper rope: **it costs the prediction nothing.** Fewer relax passes in
+the ghost, or a simplified ghost rope, would make the preview an approximation — and the preview
+being exact is the game. A sleeping rope is not an approximation of a moving rope; it is a rope that
+genuinely is not moving. Freezing it in the ghost is therefore exactly right, and the hanging
+cables the ball never goes near are precisely the ones that are asleep.
+
+**The one subtlety that will break it if missed:** the sleep flag and the sleep counter are
+simulation state, so they belong in `snapshot()`, `restore()` and `ghost_copy()` alongside the knot
+positions. Leave them out and the ghost wakes a rope the real ball left asleep — the two run the
+same code from *different* state, and the preview drifts. That is the invariant-2 failure mode, and
+it earns a test beside the existing `a prediction leaves the real rope exactly where it was`.
+
+Three layers, in order of how much they buy:
+
+1. **Most of the field is `deco/`.** Cables the ball can never reach are art. This is the biggest
+   win and costs nothing.
+2. **Sleeping** for the ones that are real.
+3. **Broadphase**, so a distant sleeping rope is not even visited to be found asleep.
 
 ---
 
@@ -388,6 +455,47 @@ Each one must be ghost-copied in `StepWorld.ghost()` and must come with a predic
 test, same as cables and levers. Non-negotiable: a prediction that is wrong near a gear is worse
 than having no gears.
 
+### The auto-bounce shaft
+
+One section of the composition is a column of facing pads that the ball is meant to ricochet
+between, all the way to the top, on its own — the player holds no input and the sequence is pure
+spectacle.
+
+**Do not get there by tuning.** "Always works" and "carefully tuned bouncy physics" are opposites:
+the ball arrives at the first pad with whatever velocity the player's shot gave it, each bounce
+amplifies the difference, and after five or six the sequence either overshoots or stalls. A
+tolerance that holds in testing fails on the shot nobody tried.
+
+The mechanism to make it deterministic already exists and needs no new system.
+`_apply_trampoline_launch` does not *add* to the incoming velocity — it **replaces** the normal
+component outright:
+
+```
+wanted = (launch_speed + impact_bonus * impact_speed) * form.trampoline_bounce
+v      = tangent * horizontal_keep + normal * wanted
+```
+
+Two of those terms are the only places the arrival velocity enters. Set both to zero **for the pads
+in this shaft** and the outgoing velocity is `normal * launch_speed` — identical every time,
+whatever the ball was doing when it arrived. The bounce becomes a property of the pad's geometry
+rather than of the shot, so the sequence is right by construction and cannot drift when something
+else is tuned.
+
+What it needs:
+
+- **Per-pad `horizontal_keep` and `impact_bonus` on `ShapeBody`**, defaulting to `-1` meaning "use
+  the global" — exactly the pattern `launch_speed` and `bounce_boost` already follow. The global
+  values stay as they are, because an ordinary trampoline elsewhere *should* respond to how hard it
+  was hit.
+- **An input lock while the sequence runs**, so a launch mid-ricochet cannot break out of a
+  cinematic. The limiter already owns the "may this shot go?" question, so this is a flag there, not
+  a special case in the simulation.
+- **A failsafe exit.** If the ball is still in the shaft after N seconds, something is wrong;
+  release the lock rather than trap the player. Cheap insurance against the one entry nobody tried.
+
+The good consequence: this section drops down the risk list. It is on rails, so only its entry and
+its exit need design attention.
+
 ---
 
 ## How we build the level
@@ -397,6 +505,18 @@ than having no gears.
 Every sticky note in the composition is a **beat** — one thing the player learns. One beat, one
 scene, assembled into the full level later. That gives fast iteration (load one beat, not a level
 ten thousand pixels wide), a testable unit, and a clean seam for two people to work either side of.
+
+**This does not mean cutting the level into chunks.** The designer's composition is one continuous
+space and it stays one continuous space: the level is a single scene whose children are *instanced*
+beat sub-scenes, positioned to match the layout exactly. Godot instancing means there is no seam,
+no loading boundary and no visual difference from having drawn it all in one file — and each beat is
+still a scene you can open on its own, play on its own, and run a solution replay against.
+
+So the composition is authoritative for *where everything is*, and the beat split is authoritative
+for *how the work is organised*. They never have to disagree. The one rule that keeps it true: a
+beat scene is positioned by its own root transform and holds nothing that reaches across into
+another beat — a cable anchored in one beat and hanging into the next belongs to one of them, by
+decision, not by accident.
 
 The opening section is the proof that this starts cheaply. Its four beats need **no new systems**:
 
@@ -471,19 +591,22 @@ The brief is that you can work on this without help, so this is a deliverable, n
 Greybox-first reorders this. **Level building does not wait for the pipeline** — it starts now,
 with blocks that already exist and are already tested, and runs alongside everything else.
 
-**Blocking everything: pick the world scale.** It is one number, and the way to get it is to
-measure the ball sprite's width in Figma at the designer's native scale:
+**The world scale is settled: k = 2.5.** That unblocks the first greybox, and the next three
+actions are in a strict order, because each one would have to be redone if it came earlier:
 
-```
-k = designer_ball_width_px / 24
-```
+1. **Apply the scale, in one commit.** Unify `squishy.radius` and `rocky.radius` to **30**, then
+   multiply every length, speed and acceleration in `tuning/tuning_data.gd` by 2.5 and leave every
+   duration alone. The existing prediction-exactness tests verify this for free — they are all
+   relative, so a correct uniform transform leaves all 81 checks green, and *any* number missed or
+   any time value scaled by mistake shows up as a failure. That is the whole reason to do it as its
+   own commit with nothing else in it.
+2. **The importer.** Slice the six delivered sheets into piece scenes with per-kind collision. It
+   needs the scale from step 1 for the closing radius and for `epsilon`, and it needs the
+   minimum-area filter that the 1 px specks on Prop Sheet 1 proved necessary.
+3. **Greybox beat 1** — launch, land on the chimney, do not touch the gears — in a new scene file,
+   built from existing blocks, for playtesting. Then the loop in "Who does what" takes over.
 
-Then either the art is drawn to a 24 px ball, or every length, speed and acceleration in the tuning
-is multiplied by *k* with times left alone. The second is a uniform transform the existing
-prediction tests verify for free, because they are relative. **Do this before the first greybox**,
-or every beat built before the decision has to be rescaled afterwards.
-
-After that, three tracks run in parallel:
+Those three run in sequence. Alongside them, three tracks run in parallel:
 
 - **Beats.** Greybox → play → lock → dress, one at a time, starting with the opening section.
   Needs no new systems to begin.
