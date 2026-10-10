@@ -16,6 +16,8 @@ mechanic, not a feature. Every decision below is downstream of keeping the ghost
 | Physics | **Keep the custom sim.** Not Godot physics. | Prediction stays exact. The cost is that broadphase and rotating bodies are ours to build — Godot would have given those away free. |
 | Collision | **Authored, not derived.** Primitives for props; simplified, radius-closed polygons for terrain. | See below. This is the decision everything else hangs off. |
 | Art delivery | **SVG per piece with named layers, plus PNG at a fixed scale.** | Layer names drive which collision primitive a piece gets. Where a polygon is needed, the SVG path beats tracing pixels. |
+| Build order | **Greybox first, art second.** Each beat is playable in plain blocks before any sprite touches it. | Level building starts immediately with tools that already exist, instead of waiting on the pipeline. See "How we build the level". |
+| Ball names | **Squishy and Rocky.** | The code keeps the names it has, including the Phaser-inherited tuning keys (`rocky.cableBounce` and friends). The designer's notes say "Heavy" — that needs passing on, so layer names and future notes line up. |
 
 ---
 
@@ -195,11 +197,62 @@ than having no gears.
 
 ---
 
-## Phase 4 — the level itself
+## How we build the level
 
-- Lay out the designer's route from the Figma composition.
-- Extend the existing **route check** to the real level, so "is this still completable" is a test
-  and not a memory.
+### The unit is a beat, and each beat is a scene
+
+Every sticky note in the composition is a **beat** — one thing the player learns. One beat, one
+scene, assembled into the full level later. That gives fast iteration (load one beat, not a level
+ten thousand pixels wide), a testable unit, and a clean seam for two people to work either side of.
+
+The opening section is the proof that this starts cheaply. Its four beats need **no new systems**:
+
+| The designer's note | What it already is |
+|---|---|
+| "can't launch again while it's in the air" | Grounded limiter mode, already the default |
+| "if it falls onto the obstacles, he dies" | `SpikeStrip` |
+| "switching to Heavy just before landing reduces the impact, bounces less" | Rocky's wall restitution is `0` — it lands dead. Mid-air switching is already on Q / Space / RMB |
+| "he can break objects when he is Heavy" | The glass system: `rocky_breaks_glass`, breaking, respawn |
+
+### Greybox, play, lock, dress
+
+1. **Greybox** the beat out of existing blocks, matching the composition. No sprites.
+2. **Play it.** Does it teach what the note says it teaches? This is the step that cannot be
+   automated and is the whole reason greybox comes first.
+3. **Lock** the collision once it plays well.
+4. **Dress** it with art, which by then changes nothing about how it plays — because collision is
+   authored, not derived.
+
+### Every beat gets a solution replay
+
+Record the intended sequence of shots and assert in CI that it still completes. Cheap to build, and
+it is what stops a tuning change silently breaking beat 3 while you are polishing beat 7. It is the
+same idea as the existing `route_check`, one level more specific.
+
+The ambitious version — proving a beat is *unsolvable* without its intended mechanic, so a teaching
+beat cannot be accidentally bypassed — is real and much harder. Worth doing later, for the beats
+that carry the most teaching weight.
+
+### Who does what
+
+| Mine | Yours | Shared |
+|---|---|---|
+| Importer and piece scenes | Composition and route | What each beat teaches |
+| New actors (gears, breakables, moving platforms) | Placement and spacing | When a beat is "done" |
+| Broadphase, pocket detector, overlay | Feel and tuning | The beat list and its order |
+| The world-scale transform | Which art goes where | |
+| Greybox skeletons from the composition | Playtesting — the part only you can do | |
+| Per-beat solution replays | | |
+
+The loop: you send a section and say which note is the beat, I hand back a playable greybox scene,
+you play it and say what is wrong, I fix systems while you adjust placement. Short turns, and
+neither of us is ever blocked on the other.
+
+### Then the level
+
+- Assemble the beat scenes into the full composition.
+- Extend the **route check** across the whole level, so "is this still completable" is a test and
+  not a memory.
 - Checkpoints from the existing flag system.
 - Camera work: the level is wide, and the current camera was tuned for a shaft.
 
@@ -222,7 +275,30 @@ The brief is that you can work on this without help, so this is a deliverable, n
 
 ## Suggested order
 
-Phase 0 first, in full, before anything else is built. Then Phase 1 and Phase 2 can run together —
-the pipeline and the broadphase do not touch each other. Phase 3 is incremental: one actor at a
-time, each with its tests, each playable on arrival. Phase 4 needs 1–3 done. Phase 5 is continuous
-rather than a stage.
+Greybox-first reorders this. **Level building does not wait for the pipeline** — it starts now,
+with blocks that already exist and are already tested, and runs alongside everything else.
+
+**Blocking everything: pick the world scale.** It is one number, and the way to get it is to
+measure the ball sprite's width in Figma at the designer's native scale:
+
+```
+k = designer_ball_width_px / 24
+```
+
+Then either the art is drawn to a 24 px ball, or every length, speed and acceleration in the tuning
+is multiplied by *k* with times left alone. The second is a uniform transform the existing
+prediction tests verify for free, because they are relative. **Do this before the first greybox**,
+or every beat built before the decision has to be rescaled afterwards.
+
+After that, three tracks run in parallel:
+
+- **Beats.** Greybox → play → lock → dress, one at a time, starting with the opening section.
+  Needs no new systems to begin.
+- **Pipeline and performance** (Phases 1–2). Independent of the beats until the dressing step.
+- **Actors** (Phase 3), pulled in as the beats demand them rather than built speculatively — the
+  opening section needs none, so the first gear can wait until a beat actually calls for one.
+
+Phase 0's spike still happens, but it is now about the *art* questions (vertex budget, closing
+radius, import workflow) rather than about whether the level can be started.
+
+Phase 5 is continuous rather than a stage.
