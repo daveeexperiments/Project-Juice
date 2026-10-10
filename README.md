@@ -1,12 +1,12 @@
-# Project Juice — Godot port
+# Project Juice
 
 A vertical-shaft precision platformer: **two balls, one slingshot**. You never walk or jump — you
 drag back a slingshot and fire, switching between a light **squishy** ball that bounces and a
 heavy **rocky** ball that smashes glass.
 
-This is the Godot 4 port of a Phaser 3 + TypeScript prototype. The Phaser project remains the
-reference for behaviour; [`docs/PORTING.md`](docs/PORTING.md) maps every ported file and records
-what could not be ported one-to-one.
+This began as a Godot 4 port of a Phaser 3 + TypeScript prototype. That prototype is finished and
+no longer developed — this is the game now. [`docs/PORTING.md`](docs/PORTING.md) maps every ported
+file, records what could not be ported one-to-one, and grades how well founded each part is.
 
 ## Running it
 

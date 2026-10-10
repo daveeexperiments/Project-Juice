@@ -179,13 +179,22 @@ further than a slow one and the ghost would drift.
 - `trampoline.idleBounce`, `idleSpeed`, `boingInterval`. An idle animation and its sound. No logic
   behind them, so out of scope by instruction.
 
-**What to check against the Phaser source, in priority order.** Everything here passes its tests;
-these are the places where a test can only prove the code is self-consistent, not that it matches
-the original.
+**Where the reconstruction had to make a judgement call — now tuning decisions, not fidelity
+questions.**
 
-1. **`lever.pivotFriction` and `lever.torqueScale`.** At `torqueScale` 1 the plank slams into its
-   stop under either ball in well under a second, which suggests `torqueScale` is carrying a units
-   conversion in the original. Is `pivotFriction` a torque (as here) or an angular deceleration?
+The port is finished and the Phaser project is no longer being developed, so there is nothing left
+to check these against. They are listed because each one is a place where the code is
+self-consistent and passes its tests, but the *number or the reading* was inferred rather than
+read. If one of them feels wrong in play, this is where to look first — and the answer is now
+whatever feels right, not whatever Phaser did.
+
+1. **`lever.torqueScale` — the one that is actually broken.** At `torqueScale` 1 the plank slams
+   into its stop under *either* ball in well under a second, so the mass difference (6 against 1)
+   is invisible in play and the lever is not yet a puzzle element at all. The headless test can
+   only see it as time-to-stop, 107 steps against 266. Lowering `torqueScale` until the squishy
+   ball moves the plank without reaching the stop is the fix; `lever.counterweight` is the other
+   knob, and makes the lever a genuine switch. `pivotFriction` is treated here as a torque rather
+   than an angular deceleration.
 2. **`fans.sustain` (0.55).** Used here as how much push survives at the very edge of the mouth, so
    a ball slides out of a stream rather than falling off a shelf of air. It could instead be a
    decay on the push once the ball is leaving.
@@ -193,10 +202,10 @@ the original.
    to damp the bounce. `cables.impactBonus` is applied only to the *sustained* throw, mirroring
    glass, where `boostImpactGain` applies only in Boost mode -- in the physical case the bounce
    already scales with the impact, so adding a bonus would count it twice.
-4. **Where the fan force goes.** The phase-1 comment in `ball_sim.gd` said "fans multiply [the
+4. **Where the fan force goes.** A phase-1 comment in `ball_sim.gd` said "fans multiply [the
    gravity scale] in Phaser", but `fans.targetSpeed`, `strength` and `falloff` only make sense as a
-   force field converging on a stream speed, which is how it is built. If Phaser really folds it
-   into a gravity scale, the hovering behaviour will differ.
+   force field converging on a stream speed, which is how it is built. The force-field reading is
+   now simply how fans work.
 5. **`squishy.trampolineBounce` is 0 while `squishy.launchesOffTrampoline` is false.** Read here as
    the two agreeing rather than conflicting: the squishy ball neither launches off a pad nor would
    get anything if it did. A non-launching ball instead bounces at the global
@@ -230,17 +239,18 @@ Three places; the Phaser code won each time, as instructed.
    ported. When phase 2 adds it, `_respond_to_shape` is where it goes — the hook is commented.
 
 Also worth flagging: the brief lists the current defaults as *Physical* bounce style and *Reflect*
-glass. That matches the Phaser project as of `TUNING_VERSION = 15`, so nothing special was needed —
-but both values come from the exported JSON, so if the Phaser defaults change, re-export and this
-port follows.
+glass. That matched the Phaser project as of `TUNING_VERSION = 15`, so nothing special was needed.
+Both values now live in `TuningData` like any other, and change by being edited here.
 
 ---
 
 ## Tuning
 
-`tuning/phaser_tuning.json` is generated from the Phaser `DEFAULT_TUNING` (250 values, tuning
-version 15). It did not exist before this port; the extractor parses `src/config/tuning.ts`
-without modifying it.
+`tuning/phaser_tuning.json` was generated from the Phaser `DEFAULT_TUNING` (250 values, tuning
+version 15). **It is now a frozen set of starting values, not a source to re-import from** — the
+Phaser project is finished and nothing will be exported from it again. The file stays because it
+is what `TuningData` loads on startup and what `default.tres` was built from; treat it as this
+game's initial tuning, and change values in `TuningData` (or the Inspector) rather than here.
 
 **171 values map** onto `TuningData` after phase 3. **79 do not** and are listed in
 `docs/unmapped_tuning_keys.txt`:
@@ -258,10 +268,15 @@ without modifying it.
 
 Every value the ported systems read is mapped. Nothing excluded here changes how a ball moves.
 
-To regenerate after changing the Phaser defaults:
+Of the 79, only `pickups.*` is still a candidate to build. The juice, audio and fx groups were
+excluded by instruction; level generation is not planned; and the rest are visuals or debug
+markers with no logic behind them. They are kept in the list so that a key with no field is
+visibly *unimplemented* rather than silently defaulted.
+
+Adding a value now means adding the field to `TuningData` and an entry to `FIELD_BY_PATH`. If you
+want it to survive in `default.tres` as well:
 
 ```bash
-node <scratch>/extract-tuning.mjs          # writes tuning/phaser_tuning.json
 godot --headless --path . --script tuning/save_default.gd   # rewrites tuning/default.tres
 ```
 

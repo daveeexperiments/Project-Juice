@@ -169,23 +169,29 @@ When you write a behavioural test, measure the thing you mean. Two mistakes alre
 Use a tolerance for resting contacts (within half a pixel), not float equality: the push-out pass
 holds a resting ball just shy of the exact figure.
 
-## Where this port is least trustworthy
+## Where the numbers came from, and where they are soft
 
-Phases 1–2 were transcribed with the Phaser source open. Phase 3 (the limiter modes, fans,
-trampolines, cables, the lever) was written without it — the source lives outside this repository.
-The tuning contract in `tuning/phaser_tuning.json` stood in for it.
+**The port is finished and the Phaser project is no longer being developed. This is the game
+now.** There is no original to defer to: `tuning/phaser_tuning.json` is a frozen set of starting
+values, not a source to re-import from, and a question about how something should behave is a
+design question, not an archaeology one. Answer it by what plays well.
 
-`docs/PORTING.md` grades each system **transcribed / derived / reconstructed** and lists, in
-priority order, the five places where a test can only prove the code self-consistent rather than
-faithful. **Read that list before trusting the feel of cables or the lever.** The lever's plank
-saturates against its stop at `torqueScale` 1, which suggests that key carries a units conversion
-in the original.
+That said, some numbers are better founded than others, and it is worth knowing which. Phases 1–2
+were transcribed with the Phaser source open; phase 3 (the limiter modes, fans, trampolines,
+cables, the lever) was reconstructed from the tuning keys alone. `docs/PORTING.md` grades each
+system **transcribed / derived / reconstructed** and lists the places where a reading was inferred
+rather than read. **If something feels wrong in cables or the lever, start there** — those are the
+inferences, so they are the likeliest to need tuning.
 
-If a question can only be settled by reading the Phaser source, ask — don't guess.
+One is a known defect rather than a doubt: at `lever.torqueScale` 1 the plank hits its stop under
+either ball, so the mass difference is invisible and the lever is not yet a puzzle element.
+
+The provenance comments throughout the code (`Ported from src/systems/X.ts`) are history worth
+keeping — they explain why a function is shaped the way it is — but they are not instructions to
+go and look anything up.
 
 ## Standing instructions
 
-- The Phaser project is a **read-only** reference. Never modify it.
 - **Don't touch level files** after the user has edited them. They build levels themselves and
-  have had work overwritten.
+  have had work overwritten. A new level in a new file is fine; editing theirs is not.
 - No exports or builds unless asked.

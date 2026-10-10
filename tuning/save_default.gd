@@ -1,11 +1,12 @@
 extends SceneTree
 
-## One-shot helper: write tuning/default.tres from the exported Phaser values.
+## One-shot helper: write tuning/default.tres from the values in phaser_tuning.json.
 ##
 ##   godot --headless --path . --script tuning/save_default.gd
 ##
-## Run it again whenever the Phaser project's defaults change and phaser_tuning.json is
-## re-exported, so the committed resource and the reference project stay in step.
+## phaser_tuning.json is a FROZEN set of starting values -- the Phaser project it came from is
+## finished and nothing will be exported from it again. Run this after adding a field to
+## TuningData, so the committed resource carries it too.
 
 
 func _initialize() -> void:
