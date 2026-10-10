@@ -1295,9 +1295,20 @@ func _build_test_world() -> StepWorld:
 	return world
 
 
+## Write the list of Phaser values this port never found a home for.
+##
+## This asks a THROWAWAY TuningData to read the frozen export, rather than reading
+## `get_active().unmapped_keys`. That used to work only as a side effect: `get_active()` loaded the
+## JSON over the live values on first use, and the list fell out of it. Now that nothing loads the
+## JSON on its own -- the authored defaults are the only source -- reading the live instance would
+## report zero unmapped keys and overwrite this document with an empty file, which reads as "all
+## ported" when it means "never asked".
+##
+## The throwaway instance also keeps the report honest in the other direction: it cannot disturb
+## the values the tests above just ran against.
 func _report_unmapped() -> void:
-	var t: TuningData = TuningData.get_active()
-	var keys: PackedStringArray = t.unmapped_keys.duplicate()
+	var probe: TuningData = TuningData.new()
+	var keys: PackedStringArray = probe.load_phaser_json(TuningData.PHASER_JSON_PATH).duplicate()
 	keys.sort()
 	var file: FileAccess = FileAccess.open("res://docs/unmapped_tuning_keys.txt", FileAccess.WRITE)
 	if file != null:

@@ -156,7 +156,7 @@ extends Resource
 ## Drag distance that gives full power (px).
 @export_range(40.0, 600.0, 5.0) var slingshot_drag_for_max_power: float = 220.0
 ## How far the fork lifts the ball off a surface, in ball radii.
-@export_range(0.0, 4.0, 0.1) var slingshot_cradle_lift: float = 1.4
+@export_range(0.0, 4.0, 0.1) var slingshot_cradle_lift: float = 1.5
 ## Shift snaps the aim to multiples of this (degrees). 0 = no snapping.
 @export_range(0.0, 45.0, 1.0) var slingshot_angle_snap_step: float = 5.0
 ## 0 = full 360, 1 = upward only, 2 = custom (uses the min/max below).
@@ -183,11 +183,11 @@ extends Resource
 ## The first contact plus this many further bounces.
 @export_range(0.0, 5.0, 1.0) var preview_bounces: int = 3
 ## How much the line fades along its length (0 = no fade).
-@export_range(0.0, 1.0, 0.05) var preview_fade: float = 0.4
+@export_range(0.0, 1.0, 0.05) var preview_fade: float = 0.7
 ## How much dimmer each bounce segment is than the one before.
 @export_range(0.0, 1.0, 0.05) var preview_bounce_fade: float = 0.4
 @export_range(1.0, 40.0, 1.0) var preview_dash_length: float = 9.0
-@export_range(2.0, 60.0, 1.0) var preview_dash_spacing: float = 16.0
+@export_range(2.0, 60.0, 1.0) var preview_dash_spacing: float = 17.0
 
 # ---------------------------------------------------------------- camera
 
@@ -197,8 +197,8 @@ extends Resource
 ## Per-frame follow factor at 60fps; converted to frame-rate independent internally.
 @export_range(0.01, 1.0, 0.01) var camera_follow_lerp: float = 0.12
 ## Look-ahead in the direction of travel, as a multiple of speed.
-@export_range(0.0, 1.0, 0.01) var camera_look_ahead: float = 0.25
-@export_range(0.0, 600.0, 10.0) var camera_look_ahead_max: float = 220.0
+@export_range(0.0, 1.0, 0.01) var camera_look_ahead: float = 0.3
+@export_range(0.0, 600.0, 10.0) var camera_look_ahead_max: float = 280.0
 
 # ---------------------------------------------------------------- glass
 
@@ -419,19 +419,39 @@ static var active: TuningData = null
 static func get_active() -> TuningData:
 	if active == null:
 		active = TuningData.new()
-		active.load_phaser_json(PHASER_JSON_PATH)
 	return active
 
 
+# ---------------------------------------------------------------- the frozen Phaser export
+
+## The exported Phaser values, kept as history. **Not loaded on startup, and not a source to
+## re-import from.**
+##
+## It used to be loaded over the top of these defaults every time the game booted and every time
+## the tests called `get_active()`, which made it the real source of truth for all 171 fields
+## below -- the `@export` defaults were dead values that the Inspector displayed and nothing used.
+## Five of them had already drifted away from the JSON without any effect
+## (`slingshot_cradle_lift` among them, which is a physical number), and nobody noticed, because
+## nothing they affected could change.
+##
+## That was harmless while the port was being transcribed and the Phaser project was the
+## authority. It is not harmless now: the Phaser project is retired, this is the game, and an
+## edit to a number here has to be the edit that takes effect. A scale change made against these
+## defaults would have been silently discarded and every test would still have passed.
+##
+## So the defaults below are now the only source, and this file is archaeology. `load_phaser_json`
+## still works for a one-off comparison, and `tuning/save_default.gd` still uses it; neither runs
+## by itself.
 const PHASER_JSON_PATH: String = "res://tuning/phaser_tuning.json"
 
-## Phaser paths that have no field here, filled in by the last load. Reported in docs/PORTING.md
-## and printed once on startup, so a value that quietly failed to port is visible rather than
-## silently default.
+## Phaser paths that have no field here, filled in by the last load. Reported in docs/PORTING.md,
+## so a value that quietly failed to port is visible rather than silently default.
 var unmapped_keys: PackedStringArray = PackedStringArray()
 
 
 ## Overwrite these values from the exported Phaser JSON. Returns the keys that had nowhere to go.
+##
+## Only called deliberately now -- see PHASER_JSON_PATH above.
 func load_phaser_json(path: String) -> PackedStringArray:
 	unmapped_keys = PackedStringArray()
 	if not FileAccess.file_exists(path):
