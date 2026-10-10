@@ -153,6 +153,36 @@ piece lands at 38–54 vertices median, which is a comfortable budget for `Shape
 is O(edges). Lower it and outlines get expensive; raise it and silhouettes stop looking like
 themselves.
 
+## Making a piece deadly, and making it turn
+
+Two different fields, in two different places, because they answer two different questions.
+
+**Deadly is a property of the piece.** Open its manifest entry and set `role` to `HAZARD`, then
+re-run the importer. Every copy of that piece, in every level, gains a `Hazard` child and kills on
+contact. It is added as a **child** of the existing root, never a change of root — Godot cannot
+propagate a root-type change to scenes that already instance this one, so doing it that way would
+mean rebuilding every level.
+
+The deadly disc is deliberately **larger** than the piece's collision: collision is the biggest
+circle that fits the art, the hazard reaches the tooth tips, so the ball meets the teeth before the
+solid hub. Get that ordering backwards and the solid fences the ball away from the region that
+kills it, and the hazard goes silently inert — `core/spike_strip.gd` opens by warning about exactly
+that. A near-square gear has almost no gap between the two half-extents, so there is a 5% clearance
+floor and a test that holds it.
+
+You get the ghost line's behaviour for free: it already stops dead at a hazard, so the preview ends
+at the blade. That warning is honest, because the real ball dies there too.
+
+**Turning is a property of the placement.** Select a placed piece and set
+`spin_degrees_per_second`. Two copies of the same gear can turn at different speeds, or opposite
+ways.
+
+It is **visual only** — it rotates the `Art` child and never the collision, which stays the circle
+the manifest chose. That is not a shortcut: a gear that only kills has no reason to turn in the
+simulation, and a static hazard is *shared* by the trajectory preview rather than copied, so it
+costs the prediction nothing. Only a gear the ball is meant to **ride** needs real rotation, and
+that is a different system.
+
 ## Two different questions about collision
 
 They get answered in two different places, and keeping them apart is what lets placement and

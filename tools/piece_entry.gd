@@ -92,6 +92,30 @@ enum Kind {
 ## fine by now".
 @export var reviewed: bool = false
 
+## What this piece DOES, as opposed to what it collides as.
+##
+## `kind` answers "what shape does the ball hit"; `role` answers "and then what happens". They are
+## separate because a saw blade and a pulley are the same circle and nothing alike.
+##
+## Like `kind`, this is a property of the PIECE, so setting it here makes every copy in every level
+## deadly on the next import. Whether a particular copy reaches the simulation at all is the
+## `collides` box on the placed node.
+enum Role {
+	PLAIN, ## A solid. Most pieces.
+	HAZARD, ## Kills on contact. Saw blades, spiked gears.
+}
+
+@export var role: Role = Role.PLAIN
+
+## For `HAZARD`: how far the teeth reach from the centre, in source pixels. 0 measures it from the
+## region.
+##
+## This is the piece's OUTER extent, and it must be larger than `effective_radius()`, which is the
+## largest circle that FITS the art. The ball then meets the teeth before it reaches the solid hub.
+## The other way round, the solid fences the ball away from the deadly region and the hazard goes
+## silently inert -- the failure `core/spike_strip.gd` opens by warning about.
+@export var hazard_radius: float = 0.0
+
 
 ## The outer radius to collide with, measured from the region when `radius` is left at 0.
 ##
@@ -103,6 +127,31 @@ func effective_radius() -> float:
 	if radius > 0.0:
 		return radius
 	return minf(float(region.size.x), float(region.size.y)) * 0.5
+
+
+## The deadly radius for a `HAZARD`, measured from the region when `hazard_radius` is left at 0.
+##
+## Uses the LARGER half-extent, where `effective_radius()` uses the smaller. That is the whole
+## ordering this depends on: collision is the disc that fits inside the art, the hazard reaches the
+## tips of the teeth that stick out past it.
+func effective_hazard_radius() -> float:
+	if hazard_radius > 0.0:
+		return hazard_radius
+	var outer: float = maxf(float(region.size.x), float(region.size.y)) * 0.5
+	# The outer extent alone is not enough, and the gap is easy to miss: a gear is very nearly
+	# square, so its two half-extents are nearly equal -- 403 x 415 gives 208 against 202 -- and on
+	# a piece that IS square they are identical. The ball would then come to rest exactly on the
+	# boundary, where `SpikeStrip.touches` uses a strict less-than, and the blade would never bite.
+	#
+	# A resting ball sits at the collision radius plus its own, and the push-out pass leaves it a
+	# fraction short of even that, so the deadly region needs real clearance rather than a tie.
+	return maxf(outer, effective_radius() * HAZARD_CLEARANCE)
+
+
+## How far past its collision a hazard must reach. 5% of a 200px gear is 10px -- far more than the
+## sub-pixel slack in a resting contact, and small enough that the deadly region still reads as the
+## blade rather than a halo around it.
+const HAZARD_CLEARANCE: float = 1.05
 
 
 ## Human-readable name of a kind, for reports.

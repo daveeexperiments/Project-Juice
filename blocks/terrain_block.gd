@@ -39,6 +39,19 @@ const PAD_COILS: int = 9
 		smoothing = value
 		queue_redraw()
 
+## How fast this piece's art turns, in degrees per second. 0 is still.
+##
+## **Visual only, and that is the point.** It spins the `Art` child and never the collision, which
+## stays the circle the manifest chose. A gear that only kills does not need to turn in the
+## simulation at all: the hazard disc under it is static, so `StepWorld.ghost()` can share it
+## instead of copying it, and the trajectory preview costs nothing. Only a gear the ball is meant
+## to RIDE needs real rotation, and that is a different system -- surface velocity at the contact
+## point, like the lever.
+##
+## Per placement rather than per piece, because two copies of the same gear should be able to turn
+## at different speeds, or in opposite directions.
+@export_range(-720.0, 720.0, 5.0) var spin_degrees_per_second: float = 0.0
+
 ## Whether THIS placement reaches the simulation. Off makes it scenery.
 ##
 ## The piece's `kind` in the manifest decides what a gear collides AS, and that is a property of
@@ -89,11 +102,19 @@ func _ready() -> void:
 	queue_redraw()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	# In the editor only, redraw while the points are being dragged. `polygon` is inherited, so
 	# there is no setter to hook -- watching it here is the simplest honest way to stay current.
 	if Engine.is_editor_hint():
 		queue_redraw()
+
+	if is_zero_approx(spin_degrees_per_second):
+		return
+	# Turns the ART, never this node: rotating the block would rotate its polygon, and the
+	# collision a spinning gear presents must not change as it turns.
+	var art: Node2D = get_node_or_null(^"Art") as Node2D
+	if art != null:
+		art.rotation += deg_to_rad(spin_degrees_per_second) * delta
 
 
 ## The collision body for this block, in WORLD space. The level asks for this once on load.

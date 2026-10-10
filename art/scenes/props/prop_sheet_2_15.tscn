@@ -3,12 +3,12 @@
 [ext_resource type="Script" path="res://blocks/terrain_block.gd" id="1_s10to"]
 [ext_resource type="Texture2D" path="res://art/atlas/props/prop_sheet_2_15.tres" id="2_827g2"]
 
-[node name="prop_sheet_2_15" type="Polygon2D" unique_id=419989828]
+[node name="prop_sheet_2_15" type="Polygon2D" unique_id=1891112477]
 scale = Vector2(0.288, 0.288)
 polygon = PackedVector2Array(21.19584, 0.31082, 0.29087, 72.94092, 16.13944, 92.77695, 58.2124, 106.61837, 172.12794, 189.7632, 257.8785, 221.75719, 300.56152, 149.84288, 189.85333, 55.23461, 102.87722, 15.22717)
 script = ExtResource("1_s10to")
 show_placeholder = false
 
-[node name="Art" type="Sprite2D" parent="." unique_id=1406549437]
+[node name="Art" type="Sprite2D" parent="." unique_id=1963544002]
 texture = ExtResource("2_827g2")
 centered = false

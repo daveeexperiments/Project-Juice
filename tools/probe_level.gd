@@ -54,8 +54,23 @@ func _initialize() -> void:
 		world.shapes.append(block.build_shape(next_id))
 		next_id += 1
 
+	# Hazards, so "is this gear actually deadly?" has an answer that is not "play it and find out".
+	var strips: int = 0
+	var discs: int = 0
+	for node: Node in blocks:
+		var hazard: SpikesBlock = node as SpikesBlock
+		if hazard == null:
+			continue
+		var built: SpikeStrip = hazard.build_strip(0)
+		world.spikes.append(built)
+		if built.is_disc():
+			discs += 1
+		else:
+			strips += 1
+
 	print("%s" % path.get_file())
 	print("  %d solid pieces, bounds %s" % [world.shapes.size(), world.bounds()])
+	print("  %d hazards (%d disc, %d strip)" % [world.spikes.size(), discs, strips])
 	if world.shapes.is_empty():
 		printerr("  NO COLLISION AT ALL -- every piece in this level is decoration")
 		quit(1)
@@ -102,7 +117,7 @@ func _initialize() -> void:
 ## Walks the tree rather than reading the `terrain` group, because group membership is added in
 ## `_ready` and nothing here is in a tree to have had one.
 func _collect(node: Node, into: Array[Node]) -> void:
-	if node is TerrainBlock:
+	if node is TerrainBlock or node is SpikesBlock:
 		into.append(node)
 	for child: Node in node.get_children():
 		_collect(child, into)

@@ -24,6 +24,7 @@ extends SceneTree
 const MANIFEST_DIR: String = "res://art/manifest"
 const SCENE_DIR: String = "res://art/scenes"
 const BLOCK_SCRIPT: String = "res://blocks/terrain_block.gd"
+const SPIKES_SCRIPT: String = "res://blocks/spikes_block.gd"
 
 
 func _initialize() -> void:
@@ -116,6 +117,20 @@ func _write_scene(piece: PieceEntry, outline: PackedVector2Array, scale: float, 
 	sprite.texture = art
 	root.add_child(sprite)
 	sprite.owner = root
+
+	# A hazard is a CHILD, never a change of root. Godot cannot propagate a root-type change to
+	# scenes that already instance this one, so every level built so far would have to be redone.
+	# Added as a child, it simply appears under every placement on the next import.
+	if piece.role == PieceEntry.Role.HAZARD:
+		var danger: Polygon2D = Polygon2D.new()
+		danger.set_script(load(SPIKES_SCRIPT))
+		danger.name = "Hazard"
+		danger.set("shape", 1)  # SpikesBlock.SHAPE_DISC
+		danger.set("radius", piece.effective_hazard_radius())
+		# Centred on the piece, while the sprite is top-left anchored.
+		danger.position = Vector2(piece.region.size) * 0.5
+		root.add_child(danger)
+		danger.owner = root
 
 	var packed: PackedScene = PackedScene.new()
 	var packed_ok: bool = packed.pack(root) == OK

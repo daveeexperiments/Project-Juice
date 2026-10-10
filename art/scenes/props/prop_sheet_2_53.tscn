@@ -1,14 +1,22 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://blocks/terrain_block.gd" id="1_xspgh"]
-[ext_resource type="Texture2D" path="res://art/atlas/props/prop_sheet_2_53.tres" id="2_je4na"]
+[ext_resource type="Script" path="res://blocks/terrain_block.gd" id="1_je4na"]
+[ext_resource type="Texture2D" path="res://art/atlas/props/prop_sheet_2_53.tres" id="2_q3xal"]
+[ext_resource type="Script" path="res://blocks/spikes_block.gd" id="3_lbgyo"]
 
-[node name="prop_sheet_2_53" type="Polygon2D" unique_id=2143936087]
+[node name="prop_sheet_2_53" type="Polygon2D" unique_id=745899159]
 scale = Vector2(0.288, 0.288)
 polygon = PackedVector2Array(750, 379, 744.60596, 442.3753, 728.57904, 503.92743, 702.38025, 561.8856, 666.7634, 614.5825, 622.75305, 660.5021, 571.61523, 698.3234, 514.82117, 726.9584, 454.00473, 745.5832, 390.91547, 753.6621, 327.36832, 750.96265, 265.19147, 737.5625, 206.1736, 713.84717, 152.01256, 680.4989, 104.26648, 638.47705, 64.3089, 588.99054, 33.289307, 533.46295, 12.100128, 473.49176, 1.3509521, 410.80222, 1.3509521, 347.19778, 12.100128, 284.50824, 33.289307, 224.53703, 64.3089, 169.00946, 104.26648, 119.52292, 152.01256, 77.50107, 206.1736, 44.1528, 265.19147, 20.43747, 327.36832, 7.037323, 390.91547, 4.3378906, 454.00473, 12.416809, 514.82117, 31.041595, 571.61523, 59.676575, 622.75305, 97.497894, 666.7634, 143.4175, 702.38025, 196.1144, 728.57904, 254.07257, 744.60596, 315.6247)
-script = ExtResource("1_xspgh")
+script = ExtResource("1_je4na")
 show_placeholder = false
 
-[node name="Art" type="Sprite2D" parent="." unique_id=1109832690]
-texture = ExtResource("2_je4na")
+[node name="Art" type="Sprite2D" parent="." unique_id=1172725312]
+texture = ExtResource("2_q3xal")
 centered = false
+
+[node name="Hazard" type="Polygon2D" parent="." unique_id=891436110]
+position = Vector2(375, 379)
+polygon = PackedVector2Array(393.75, 0, 380.33328, 101.909996, 340.9975, 196.875, 278.42328, 278.42328, 196.875, 340.9975, 101.909996, 380.33328, 2.4110235e-14, 393.75, -101.909996, 380.33328, -196.875, 340.9975, -278.42328, 278.42328, -340.9975, 196.875, -380.33328, 101.909996, -393.75, 4.822047e-14, -380.33328, -101.909996, -340.9975, -196.875, -278.42328, -278.42328, -196.875, -340.9975, -101.909996, -380.33328, -7.23307e-14, -393.75, 101.909996, -380.33328, 196.875, -340.9975, 278.42328, -278.42328, 340.9975, -196.875, 380.33328, -101.909996)
+script = ExtResource("3_lbgyo")
+shape = 1
+radius = 393.75

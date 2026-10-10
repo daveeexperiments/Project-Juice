@@ -24,6 +24,38 @@ var depth: float = 10.0
 ## The solid slab behind the teeth.
 var base: float = 7.0
 
+## A DISC hazard instead of a strip, when greater than zero: a saw blade or a spiked gear, deadly
+## all the way round, centred on `x, y`.
+##
+## The same class rather than a new one because everything around a hazard already works in terms
+## of this one: `StepWorld.spikes`, the sharing in `ghost()`, the swept test, the route check, and
+## `StepPolicy.on_spikes` -- which is what makes the ghost line stop dead at a hazard. A second
+## hazard type would have to earn all of that again, and the only thing that actually differs is
+## which points are inside.
+##
+## A disc carries NO slab (`corners()` is empty), and that is deliberate. An imported blade already
+## has its own solid collision from the manifest, and it is the smaller circle: collision uses the
+## largest disc that fits the art, while the hazard reaches the tooth tips. That ordering is the
+## one the warning at the top of this file is about -- the deadly region has to be the larger, or
+## the solid one fences the ball off from the very zone that kills it and the hazard goes quietly
+## inert.
+var radius: float = 0.0
+
+
+## A disc hazard: deadly from every direction, with no solid body of its own.
+static func make_disc(hazard_id: int, centre: Vector2, hazard_radius: float) -> SpikeStrip:
+	var s: SpikeStrip = SpikeStrip.new()
+	s.id = hazard_id
+	s.x = centre.x
+	s.y = centre.y
+	s.radius = maxf(1.0, hazard_radius)
+	return s
+
+
+## True for the disc form.
+func is_disc() -> bool:
+	return radius > 0.0
+
 
 static func make(strip_id: int, centre: Vector2, normal: Vector2, half_length: float, thickness: float) -> SpikeStrip:
 	var s: SpikeStrip = SpikeStrip.new()
@@ -46,6 +78,12 @@ const TOOTH_SHARE: float = 0.6
 
 ## Circle against the whole block, from every side.
 func touches(cx: float, cy: float, r: float) -> bool:
+	if is_disc():
+		var ddx: float = cx - x
+		var ddy: float = cy - y
+		var reach: float = radius + r
+		return ddx * ddx + ddy * ddy < reach * reach
+
 	# Work in the strip's own frame: along its length, and across it (+ towards the points).
 	var tx: float = -ny
 	var ty: float = nx
@@ -81,7 +119,11 @@ func sweep(x0: float, y0: float, x1: float, y1: float, r: float) -> bool:
 
 
 ## The four corners of the block, for drawing and for the solid slab the level registers.
+##
+## Empty for a disc, which has no slab of its own -- see `radius`.
 func corners() -> PackedVector2Array:
+	if is_disc():
+		return PackedVector2Array()
 	var tx: float = -ny
 	var ty: float = nx
 	return PackedVector2Array([

@@ -57,6 +57,7 @@ func _initialize() -> void:
 
 	print("\n spikes and respawn")
 	_test_spikes_every_side()
+	_test_disc_hazard()
 	_test_spike_sweep_at_speed()
 	_test_respawn_uses_latest_flag()
 
@@ -258,6 +259,60 @@ func _test_spikes_every_side() -> void:
 
 	var clear: bool = not strip.touches(500.0, 500.0 - 10.0 - r * 3.0, r)
 	_check("spikes do not bite from well clear", clear, "3 radii in front is safe")
+
+
+## A disc hazard: a saw blade or a spiked gear, deadly all the way round.
+func _test_disc_hazard() -> void:
+	var blade: SpikeStrip = SpikeStrip.make_disc(1, Vector2(500.0, 500.0), 120.0)
+	var r: float = TuningData.get_active().squishy_radius
+
+	var missed: PackedStringArray = PackedStringArray()
+	for degrees: int in [0, 45, 90, 135, 180, 225, 270, 315]:
+		var d: Vector2 = Vector2(cos(deg_to_rad(float(degrees))), sin(deg_to_rad(float(degrees))))
+		var just_touching: Vector2 = Vector2(500.0, 500.0) + d * (120.0 + r * 0.8)
+		if not blade.touches(just_touching.x, just_touching.y, r):
+			missed.append("%d deg" % degrees)
+	_check("a blade bites all the way round", missed.is_empty(),
+		"missed: %s" % (", ".join(missed) if not missed.is_empty() else "nothing"))
+
+	_check("a blade does not bite from clear",
+		not blade.touches(500.0 + 120.0 + r * 3.0, 500.0, r),
+		"three radii out is safe")
+
+	# The ordering the whole design rests on: the deadly disc has to be the LARGER of the two, or
+	# the piece's own collision fences the ball away from the region that kills it. Rather than
+	# assert the numbers by hand, take them from a real piece the way the importer does.
+	# The SQUARE case is the one that matters. A gear is very nearly square, so its two half-extents
+	# are nearly equal, and on an exactly square piece they are identical -- which would leave a
+	# resting ball exactly on the boundary, where `touches` uses a strict less-than, and the blade
+	# would never bite. Both shapes are checked, because only the square one can fail.
+	var short: PackedStringArray = PackedStringArray()
+	for size: Vector2i in [Vector2i(403, 415), Vector2i(400, 400), Vector2i(750, 758)]:
+		var gear: PieceEntry = PieceEntry.new()
+		gear.region = Rect2i(Vector2i.ZERO, size)
+		gear.role = PieceEntry.Role.HAZARD
+		var deadly: float = gear.effective_hazard_radius()
+		var solid: float = gear.effective_radius()
+		# A ball resting on the solid disc has to be inside the deadly one, by more than the
+		# sub-pixel slack the push-out pass leaves behind.
+		if deadly - solid < 1.0:
+			short.append("%dx%d (%.1f vs %.1f)" % [size.x, size.y, deadly, solid])
+	_check("a hazard always reaches past the collision it sits on", short.is_empty(),
+		"too tight: %s" % (", ".join(short) if not short.is_empty() else "none"))
+
+	# A disc carries no slab, so the level registers no second solid on top of the piece's own.
+	_check("a disc hazard has no solid body of its own",
+		blade.corners().is_empty() and blade.is_disc(),
+		"corners: %d" % blade.corners().size())
+
+	# Same swept check as a strip: a fast ball must not pass through a blade between two steps.
+	var before: Vector2 = Vector2(500.0, 500.0 - 400.0)
+	var after: Vector2 = Vector2(500.0, 500.0 + 400.0)
+	_check("a blade catches a ball that crosses it in one step",
+		not blade.touches(before.x, before.y, r)
+			and not blade.touches(after.x, after.y, r)
+			and blade.sweep(before.x, before.y, after.x, after.y, r),
+		"800px step across a 240px blade")
 
 
 func _test_spike_sweep_at_speed() -> void:

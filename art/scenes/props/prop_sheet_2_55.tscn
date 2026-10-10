@@ -1,14 +1,22 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://blocks/terrain_block.gd" id="1_vfjur"]
-[ext_resource type="Texture2D" path="res://art/atlas/props/prop_sheet_2_55.tres" id="2_t727k"]
+[ext_resource type="Script" path="res://blocks/terrain_block.gd" id="1_t727k"]
+[ext_resource type="Texture2D" path="res://art/atlas/props/prop_sheet_2_55.tres" id="2_vg3vr"]
+[ext_resource type="Script" path="res://blocks/spikes_block.gd" id="3_48kdx"]
 
-[node name="prop_sheet_2_55" type="Polygon2D" unique_id=973693949]
+[node name="prop_sheet_2_55" type="Polygon2D" unique_id=341070998]
 scale = Vector2(0.288, 0.288)
 polygon = PackedVector2Array(496, 248, 490.58063, 299.5621, 474.55927, 348.8707, 448.63623, 393.77075, 413.9444, 432.29993, 372, 462.7743, 324.63623, 483.862, 273.92307, 494.64142, 222.07693, 494.64142, 171.36378, 483.862, 124, 462.7743, 82.0556, 432.29993, 47.363785, 393.77075, 21.440735, 348.8707, 5.419388, 299.5621, 0, 248, 5.419388, 196.4379, 21.440735, 147.1293, 47.363785, 102.22926, 82.0556, 63.70009, 124, 33.225708, 171.36378, 12.137985, 222.07693, 1.3585663, 273.92307, 1.3585663, 324.63623, 12.137985, 372, 33.225708, 413.9444, 63.70009, 448.63623, 102.22926, 474.55927, 147.1293, 490.58063, 196.4379)
-script = ExtResource("1_vfjur")
+script = ExtResource("1_t727k")
 show_placeholder = false
 
-[node name="Art" type="Sprite2D" parent="." unique_id=2018465723]
-texture = ExtResource("2_t727k")
+[node name="Art" type="Sprite2D" parent="." unique_id=1424498804]
+texture = ExtResource("2_vg3vr")
 centered = false
+
+[node name="Hazard" type="Polygon2D" parent="." unique_id=877531537]
+position = Vector2(248, 248)
+polygon = PackedVector2Array(260.4, 0, 251.52707, 67.39648, 225.513, 130.2, 184.1306, 184.1306, 130.2, 225.513, 67.39648, 251.52707, 1.5944902e-14, 260.4, -67.39648, 251.52707, -130.2, 225.513, -184.1306, 184.1306, -225.513, 130.2, -251.52707, 67.39648, -260.4, 3.1889805e-14, -251.52707, -67.39648, -225.513, -130.2, -184.1306, -184.1306, -130.2, -225.513, -67.39648, -251.52707, -4.7834702e-14, -260.4, 67.39648, -251.52707, 130.2, -225.513, 184.1306, -184.1306, 225.513, -130.2, 251.52707, -67.39648)
+script = ExtResource("3_48kdx")
+shape = 1
+radius = 260.40000000000003
