@@ -517,6 +517,107 @@ Each one must be ghost-copied in `StepWorld.ghost()` and must come with a predic
 test, same as cables and levers. Non-negotiable: a prediction that is wrong near a gear is worse
 than having no gears.
 
+### Giving the art its behaviour
+
+A saw blade kills, a pipe carries the ball through it, a pipe section shatters. The art cannot say
+any of that, so the same question as collision applies: where does the knowledge live?
+
+**The same place, and for the same reason.** `kind` in the manifest says what a piece collides as;
+a second field, `role`, says what it *does*. Set once per piece, it propagates to every placement
+on the next import, exactly as `kind` does.
+
+| `role` | What it becomes | Status |
+|---|---|---|
+| `PLAIN` | a solid, as now | done |
+| `HAZARD` | kills on contact | mostly exists — see below |
+| `BREAKABLE` | shatters and respawns | exists as glass |
+| `TRAMPOLINE` | a pad | exists |
+| `CABLE` | a rope | exists |
+| `PIPE_WALL` | the solid shell of a pipe run | new, trivial |
+| `GEAR` | a turning surface that carries the ball | new, Phase 3 |
+
+And the same split as `collides` governs the rest: **what a piece IS is per-piece; how it is
+CONNECTED is per-placement.** A saw blade is a hazard everywhere. A pipe's *path* only exists once
+you have laid several pipe pieces end to end, so it belongs to the level, not to the piece.
+
+#### Hazards — nearly free
+
+The spike system already does the work, and the valuable half is the part that is easy to miss:
+**`StepPolicy.on_spikes` already stops the ghost line dead.** The preview ending at the blade is
+the warning, and it is honest, because the real ball dies there too. A new hazard that routes
+through that same call inherits the whole preview behaviour with no new prediction code.
+
+What is actually missing is only the shape. `SpikeStrip` is a box — centre, normal, half-length,
+depth. Saw blades and spiky gears are discs, so a hazard needs a circular form, with the radius
+already measured by the slicer.
+
+Keep `SpikeStrip.sweep()`'s lesson: it exists because a fast ball can cross a thin hazard inside
+one step. That matters *more* for a blade, since a turning blade and a fast ball can pass through
+each other.
+
+Hazards never change, so `ghost()` shares them and prediction stays exact for nothing.
+
+#### Pipes that carry the ball — the one genuinely new system
+
+Ask the standing question: does it hold state the ball can change? **No.** The pipe is inert; it is
+the *ball* that changes, by being in transit. That is what makes this much cheaper than it looks.
+
+- **The pipe's path is immutable**, so `ghost()` shares it like a fan.
+- **Transit state is two fields on `BallState`** — which pipe, and how far along. `BallState` is
+  plain data that the preview already copies wholesale, so the ghost enters, travels and exits
+  exactly as the ball will, with no new ghosting code at all.
+
+The step gains one branch at the top: a ball in a pipe skips gravity, drag and contacts entirely
+and advances along the path. Everything downstream is untouched.
+
+Three decisions worth making deliberately rather than discovering:
+
+- **Speed.** Carrying the entry speed along the tangent keeps the shot meaningful and the preview
+  honest; a fixed transit speed makes it a ride. Prefer carrying it, **with a floor** — otherwise a
+  ball that dribbles in stalls inside a pipe with no way to launch, which is an unrecoverable
+  soft-lock in a game with no walking.
+- **No gravity inside.** A pipe is a rail. With gravity, a vertical pipe becomes a climb that can
+  fail halfway and slide back, which is both a soft-lock risk and unreadable in the preview.
+- **The path is authored, not traced.** Same principle as collision. A run is several art pieces —
+  elbows and straights — and deriving a centreline from the union of their silhouettes is fragile
+  work for no gain. A `PipeRun` node with a polyline dragged through the art is exact, editable,
+  and visible while placing.
+
+The route check must treat a run's two mouths as connected, or a level whose only way on is a pipe
+reads as unsolvable.
+
+#### Breakable pipes — do the cheap version first
+
+Glass already is this mechanism: per-shape `broken`, `respawn_seconds` and `rocky_breaks`, plus
+`StepWorld.predicted_broken`, which is how the ghost accounts for glass the shot will smash
+*without* disturbing the real level. A breakable pipe needs precisely that and nothing else.
+
+So there are two stages, and the order matters:
+
+1. **Author it as a Glass block with pipe art.** Zero engine change, works today, and the preview
+   already handles it. Enough to find out whether the beat is any good.
+2. **Then, if it earns it,** make `breakable` a property independent of material, so a pipe can
+   shatter while behaving like rock. Material drives restitution, friction and the rising assist,
+   so a metal pipe that bounces like glass will feel wrong eventually — but only eventually, and
+   this is the change that touches `GlassRules.classify` and the rocky-mode branch, so it is the
+   one to do with evidence rather than on spec.
+
+#### Turning gears — and the saving nobody notices
+
+The lever already solved the hard half: surface velocity at the contact point, and a ghost-safe
+copy. A gear is that, continuously driven instead of torque-balanced.
+
+But note what is actually needed. **A gear that only kills does not have to turn in the
+simulation.** Its rotation can be pure visual while the hazard disc underneath is static — and a
+static hazard is shared by the ghost rather than copied. Only a gear the ball can *ride* needs real
+rotation and real ghost-copying. Decide that per gear, and most of them will not need it.
+
+#### The order to build them
+
+Hazards first: smallest, and beat 1 already wants gears that kill. Breakable pipes next, via the
+glass route, because it costs nothing and can be done while placing. Pipes third — the real new
+system. Rotating gears last, and only when a beat asks the ball to ride one.
+
 ### The auto-bounce shaft
 
 One section of the composition is a column of facing pads that the ball is meant to ricochet
