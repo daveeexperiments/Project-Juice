@@ -15,9 +15,13 @@ mechanic, not a feature. Every decision below is downstream of keeping the ghost
 | Movement | **Slingshot only.** No walking, no jumping. | No character controller. The sim's movement model is unchanged. Level design stays a precision-aiming puzzle. |
 | Physics | **Keep the custom sim.** Not Godot physics. | Prediction stays exact. The cost is that broadphase and rotating bodies are ours to build — Godot would have given those away free. |
 | Collision | **Authored, not derived.** Primitives for props; simplified, radius-closed polygons for terrain. | See below. This is the decision everything else hangs off. |
-| Art delivery | **SVG per piece with named layers, plus PNG at a fixed scale.** | Layer names drive which collision primitive a piece gets. Where a polygon is needed, the SVG path beats tracing pixels. |
+| Art delivery | **The sheets as delivered. No requests go back to the designer.** PNG pages, transparent, 4096². | Every adaptation happens in Godot. No layer-name convention, no per-piece SVG, no re-exports — so classification and collision are driven by a **manifest we own**, not by metadata in the art. See "The manifest". |
 | Build order | **Greybox first, art second.** Each beat is playable in plain blocks before any sprite touches it. | Level building starts immediately with tools that already exist, instead of waiting on the pipeline. See "How we build the level". |
-| Ball names | **Squishy and Rocky.** | The code keeps the names it has, including the Phaser-inherited tuning keys (`rocky.cableBounce` and friends). The designer's notes say "Heavy" — that needs passing on, so layer names and future notes line up. |
+| Ball names | **Squishy and Rocky.** | The code keeps the names it has, including the Phaser-inherited tuning keys (`rocky.cableBounce` and friends). The designer's notes say "Heavy"; that is just a synonym to read through, not something to correct. |
+| World scale | **k = 2.5.** Ball 60 px on screen, source art imported at 24%. | A uniform multiply of every length, speed and acceleration; times untouched. See "The world scale is k = 2.5". |
+| Many cables | **Sleeping, not approximation.** A rope that is not moving stops being simulated until something touches it. | The field becomes affordable *without* costing prediction exactness, because a sleeping rope genuinely is not moving. See "The cable field". |
+| The auto-bounce shaft | **Constructed, not tuned.** Per-pad `horizontal_keep = 0` and `impact_bonus = 0`. | The bounce is deterministic by construction rather than by careful tuning, so it cannot drift. See "The auto-bounce shaft". |
+| Level assembly | **One continuous composition built from instanced beat scenes.** | Visually seamless and faithful to the designer's layout, while every beat stays separately openable and testable. See "How we build the level". |
 
 ---
 
@@ -49,10 +53,10 @@ detail that would wreck the physics.
 Only the **terrain blobs** genuinely need polygons. That shrinks the hard part of the pipeline to
 one category, and most of the designer's moving parts map onto systems that already exist.
 
-**The exception to settle deliberately:** the hollow spiky gears, and the ring the player passes
-*inside*. That is an annulus — the ball touches the inner surface — and `ShapeBody` holds a single
-closed outline with no hole support. It needs an explicit answer rather than falling out of the
-pipeline.
+**The one exception:** the hollow spiky gears, and the ring the player passes *inside*. That is an
+annulus — the ball touches the inner surface — and `ShapeBody` holds a single closed outline with no
+hole support. It gets an explicit answer in the manifest rather than falling out of the pipeline:
+two radii, two circles, one of them inverted.
 
 ### Slicing a sheet: `BitMap.opaque_to_polygons` does it, and more
 
@@ -78,15 +82,150 @@ Better still, it is not only a slicer. One call gives both halves of a piece:
 - the polygon **itself** → the collision outline, already simplified, ready to be closed by the
   ball radius
 
-**This requires a transparent background.** The test sheet was ink on opaque white, so the mask had
-to be built by thresholding on *darkness* — which works for black ink and breaks the moment art is
-coloured. The worm is pink and purple and several props have light fills; those would vanish from a
-darkness threshold. With alpha, it is `BitMap.create_from_image_alpha()` and no guessing. **Ask the
-designer for transparent-background exports.**
+**This requires a transparent background, and the delivered sheets have one.** All six came through
+with alpha, so it is `BitMap.create_from_image_alpha()` and no guessing. Worth recording why that
+mattered: the early test sheet was ink on opaque white, so the mask had to be built by thresholding
+on *darkness*, which works for black ink and silently drops anything light-coloured — the pink and
+purple worm, the props with pale fills. Those would simply have vanished. The alpha path removes the
+whole class of problem, and nothing needs to be asked for.
 
-Two things still unverified: `epsilon` is in source pixels so it scales with *k*, and it is not yet
-known what `opaque_to_polygons` does with a *hole* — which matters for the hollow gears and the ring
-the player passes inside. Test that on a real ring rather than assuming.
+Also note that **alpha tracing is now the only terrain path**, not a fallback behind SVG paths. That
+is fine, and the measurement above is why: at epsilon ≈ 8 a traced 4096 px terrain piece lands at
+40–58 vertices, which is the budget we wanted anyway. The thing SVG would have bought is precision
+we do not need, because the outline is about to be radius-closed and deliberately made to disagree
+with the art.
+
+One thing still unverified, and it cannot be answered by asking: what `opaque_to_polygons` does with
+a **hole** — which decides the hollow gears and the ring the ball passes inside. Test it on a real
+ring. If it returns only the outer boundary, the manifest answer below handles it without any
+geometry work at all.
+
+### What the delivered sheets actually contain
+
+Measured on the real exports in `art/source/`, all six of which came through with **transparent
+backgrounds** — so the importer uses alpha and the darkness fallback is never needed.
+
+| Sheet | Size | Shapes |
+|---|---|---|
+| Blob Sheet 1 / 2 / 3 | 4096² | 11 + 22 + 18 = **51 terrain pieces** |
+| Prop Sheet 1 / 2 | 4096² | 58 + 57 = **115 props** |
+| character sprite sheet | 5600×800 | **7 morph frames** |
+
+**Epsilon ≈ 8 is right for a 4096 sheet**, giving 40–58 vertices per terrain piece. The earlier
+figure of 4 was measured on a 2000 px sheet; the tolerance is in source pixels, so it tracks the
+resolution.
+
+**The props measurement settles the primitives argument with numbers.** Median prop outline is
+**24 vertices** — but 26 of the 115 run past 60, and the worst reach **532**. Those are the gears
+and saw blades: every tooth is real outline detail. Replacing those 26 with circles removes
+something like five thousand vertices from the collision world, and removes the wedging that
+tracing teeth would have caused. A circle is one number.
+
+**Four shapes on Prop Sheet 1 have a 1 px bounding box** — stray pixels or antialiasing residue.
+The importer needs a minimum-area filter, or they become four invisible collision bodies.
+
+### The manifest: how a piece gets its collision, with no help from the art
+
+The earlier plan had the designer name layers (`gear_`, `vent_`, `deco_`) and let the name pick the
+collision primitive. That is off the table: the art is final and nothing goes back to them. The
+sheets carry no names, no layers and no metadata — 51 terrain pieces and 115 props as anonymous
+blobs of alpha.
+
+So the classification has to live on our side, and the right place for it is a **manifest**: one
+checked-in resource listing every piece, its atlas region, and the collision it gets.
+
+```
+res://art/manifest/props_sheet_1.tres
+  piece 00  rect(128, 96, 412, 410)   kind = circle   r = 203
+  piece 01  rect(602, 110, 96, 388)   kind = rect
+  piece 02  rect(730, 96, 410, 404)   kind = annulus  r_outer = 202  r_inner = 141
+  ...
+```
+
+Three properties make this the right shape for the problem:
+
+- **The importer guesses, a human confirms.** Shape classification is measurable, so the first pass
+  is automatic: compare a piece's area against its bounding circle and count its outline vertices,
+  and a gear or a saw blade is obvious — high vertex count, area close to a perfect disc. Aspect
+  ratio plus near-full box fill means rectangle. Everything else falls out as a polygon to review.
+  That turns 115 props into a handful of corrections rather than 115 decisions.
+- **It is idempotent.** Re-running the importer regenerates the atlas regions and outlines but
+  *keeps* the manifest's `kind` values. Nothing hand-decided is ever lost to a re-import, which is
+  the failure that makes most art pipelines quietly unusable after a month.
+- **It is reviewable in a diff.** A collision change on a piece shows up in version control as a
+  one-line change in a text resource, which is exactly what Risk 1 — art and collision drifting
+  apart — needs in order to be noticeable.
+
+Two things the manifest answers for free:
+
+**The annulus.** A ring the ball travels inside needs no hole support anywhere in the geometry
+pipeline. It is `kind = annulus` with two radii, both measured off the sliced piece, and the
+collision is two circles — one solid, one inverted. The geometry question was only ever hard
+because we were trying to derive it; authored, it is two numbers.
+
+**`deco/`.** Nothing in the sheets marks a piece as decoration, and on reflection nothing *should*:
+the same gear is machinery in one beat and background in another. So `kind` in the manifest is the
+piece's **default**, overridable per placement. The folder still decides terrain-versus-prop, which
+is a property of the piece; whether a given instance reaches the simulation is a property of where
+it is put.
+
+### The world scale, from the character sheet
+
+The seven morph frames, left to right:
+
+| Frame | Size | |
+|---|---|---|
+| 1 | 431 × 187 | stretched |
+| 2 | 305 × 194 | stretched |
+| **3** | **250 × 246** | **curled — a resting form** |
+| 4 | 491 × 139 | stretched, the longest |
+| 5 | 454 × 190 | stretched |
+| 6 | 361 × 220 | stretched |
+| **7** | **255 × 248** | **curled — the other resting form** |
+
+So **the worm at rest is a circle about 250 px across** in source art, and that is the number *k*
+is measured from. The sim currently puts it at 24 px, so art used at 1:1 would mean k ≈ 10.4 — far
+too large on screen. The art is authored to be scaled down; what remains is choosing the on-screen
+size:
+
+| On-screen ball | k | Art scale |
+|---|---|---|
+| 48 px | 2 | 19% |
+| **60 px** | **2.5** | **24%** |
+| 64 px | ~2.7 | 26% |
+| 96 px | 4 | 38% |
+| 128 px | ~5.3 | 51% |
+
+### The world scale is k = 2.5
+
+**Ball 60 px across on screen, source art imported at 24%.** Locked, because every beat built
+before the decision would have to be rescaled afterwards, and the transform is cheap now and
+expensive after a hundred pieces exist.
+
+Why 2.5 and not larger, which was the earlier instinct:
+
+- **The preview needs room.** A full launch is 1000 px/s under 1200 px/s² gravity — the ghost line
+  for a strong shot spans several hundred prototype pixels. The arc must be visible *and* its
+  landing point legible at the same time. At k = 4 the same shot needs over three thousand screen
+  pixels of arc to read, and the camera is forced so far out that the 96 px ball stops feeling big
+  anyway. Scale buys nothing once the thing you are aiming with no longer fits on screen.
+- **60 px is not a small protagonist.** It is a sixth of a 1080 p screen's height. The prototype's
+  24 px ball felt small because it was a flat circle, not because of its size.
+- **2.5 keeps the tuning readable**, which matters because the brief is that these numbers stay
+  hand-editable. Gravity 1200 → 3000, full launch 1000 → 2500, radius 12 → 30. Round numbers that
+  can still be reasoned about by eye.
+
+It is one constant in one transform script and nothing is built on it yet, so it is still a cheap
+number to change — but it stops being cheap the moment the first beat is dressed.
+
+**The morph's extent is now quantified, and it changes the earlier advice.** At its longest the
+worm is 491 px against a 250 px resting circle — it reaches roughly a full radius past the
+collision at each end, which is not the modest overlap assumed earlier.
+
+The fix is orientation rather than restraint: the morph stretches along its own long axis, so if
+that axis is aligned with the **contact tangent when grounded** (and with velocity when airborne),
+the stretch runs *along* a floor instead of into it. Only a wall contact during a morph still
+overlaps, and that is rare and brief.
 
 ### Terrain: simplify, then close by the ball's radius
 
@@ -103,9 +242,11 @@ for both forms.
 
 ### The quiet benefit
 
-Once collision is authored rather than traced, the art is **free**. The ink edges can be as grainy
-and detailed as the designer likes, because none of it reaches the sim. Worth telling them: it
-removes a constraint they may be working under.
+Once collision is authored rather than traced, the art is **free** — and since the art is final,
+that is the property doing the real work here. Every grainy ink edge, every gear tooth, every
+pale fill is detail that never reaches the simulation and therefore cannot cost us anything. The
+pipeline does not need the art to be shaped a particular way, which is exactly why no requests have
+to go back.
 
 ---
 
@@ -138,7 +279,11 @@ It also removes a whole class of edge case: `Ball._resolve_overlap` exists becau
 finds space. With equal radii that can no longer happen. The code stays as a guard; the situation
 stops arising.
 
-The final value waits on the world-scale decision, since *k* scales it with everything else.
+With k = 2.5 the unified value is **30**: one `radius` for both forms, 60 px across on screen.
+
+Note which radius the terrain closing uses. Today it must use the *larger* of the two (squishy's
+12) so one outline is safe for both forms; once they are equal that caveat disappears and the
+closing radius is simply the ball's radius.
 
 ### The sprite never drives the collision
 
@@ -195,7 +340,10 @@ Two consequences for the visual layer, neither of which touches the sim:
 
 - The morph frames stick out past the collision circle, so switching while resting against a
   surface will overlap it. Over a couple of hundred milliseconds that reads as squash rather than
-  clipping — accept it, and ask the designer to keep the morph's extent modest.
+  clipping, so accept it. The frames are what they are and will not be redrawn, so the two levers
+  we do have are both ours: the orientation rule above, which turns the stretch along the surface
+  instead of into it, and `fx.switchPopMs`, which decides how long any overlap is on screen. A
+  shorter morph is a smaller problem.
 - The morph must survive interruption. Switch twice quickly and the sim is already in the new form
   while the animation is half-way through; the visual layer plays on from where it is, or reverses.
 
@@ -287,17 +435,21 @@ a hundred pieces exist. **Pick k in Phase 0 and tell the designer the number.**
 
 ## Phase 1 — the art pipeline
 
-- **A naming convention, agreed with the designer, before the next batch of art.** Layer names are
-  the only structure that survives the export, so they carry the piece's kind — and the kind picks
-  the collision primitive. `gear_`, `pipe_`, `vent_`, `spring_`, `chain_`, `terrain_`, `deco_`.
-  `deco_` is the important one: it means "never reaches the sim".
-- **An importer** that turns a delivered piece into a Godot scene: sprite plus the right collision
-  for its kind. Built on the existing `@tool` block pattern so pieces stay editable in the viewport.
+- **The slicer.** `opaque_to_polygons` over each sheet, with the minimum-area filter, producing an
+  atlas region and a simplified outline per piece. Pieces must be ordered **deterministically** —
+  sorted row-major by bounding box, not by whatever order the call happens to return — because that
+  order is what the manifest keys on.
+- **The manifest and its classifier**, above. The guess is a measurement; the corrections are a
+  short editor pass; the result is checked in.
+- **An importer** that turns a manifest entry into a Godot scene: sprite plus the collision its
+  `kind` says. Built on the existing `@tool` block pattern so pieces stay editable in the viewport.
   For everything except terrain this is a primitive and needs no geometry work at all.
-- **The terrain path only:** SVG path (preferred) or alpha trace (fallback) → simplify → close by
-  ball radius → vertex budget warning. The budget serves feel *and* performance at once, since
-  `ShapeBody.contact` is O(edges).
-- **The overlay** from Risk 1.
+- **The terrain path only:** alpha trace → simplify at epsilon ≈ 8 → close by the ball radius →
+  vertex budget warning. The budget serves feel *and* performance at once, since `ShapeBody.contact`
+  is O(edges).
+- **The overlay** from Risk 1. With no layer names to cross-check against, this is the *only* thing
+  that catches a piece whose collision is wrong, so it moves up in importance rather than being a
+  nicety.
 
 ---
 
@@ -305,10 +457,46 @@ a hundred pieces exist. **Pick k in Phase 0 and tell the designer the number.**
 
 - **Broadphase.** A uniform spatial hash is the right first choice: the level is mostly static, the
   ball is a point query, and it is a day's work. Bucket by the ball's radius.
+- **Cable sleeping**, below — the cable field is the one piece of the composition that is a
+  performance problem by itself, independent of level size.
 - **The pocket detector** from Risk 2, in the test suite.
 - **Shape caching.** Make sure `smooth_closed_polygon` runs once on load, not per frame.
 - **A performance test in the suite**, so a regression is a red build rather than a bad feeling six
   weeks later.
+
+### The cable field
+
+The composition has a dense field of hanging cables in the middle of the level. Costed out, that is
+a problem on its own: a rope is Verlet-integrated with `RELAX_PASSES = 3` constraint passes per
+step, and the trajectory preview re-steps the whole world for every frame of aiming. Tens of ropes
+multiplied by the preview's step budget multiplied by three relax passes lands in the high hundreds
+of thousands of constraint solves **per aiming frame**. Aiming would be the slowest thing in the
+game.
+
+The answer is the one every physics engine reaches for — Box2D, PhysX, Havok, Unity and Unreal all
+ship it — and it is **sleeping**, not approximation:
+
+> A rope whose largest knot movement stays below a threshold for N consecutive steps stops being
+> integrated. It wakes when something touches it.
+
+Why sleeping rather than a cheaper rope: **it costs the prediction nothing.** Fewer relax passes in
+the ghost, or a simplified ghost rope, would make the preview an approximation — and the preview
+being exact is the game. A sleeping rope is not an approximation of a moving rope; it is a rope that
+genuinely is not moving. Freezing it in the ghost is therefore exactly right, and the hanging
+cables the ball never goes near are precisely the ones that are asleep.
+
+**The one subtlety that will break it if missed:** the sleep flag and the sleep counter are
+simulation state, so they belong in `snapshot()`, `restore()` and `ghost_copy()` alongside the knot
+positions. Leave them out and the ghost wakes a rope the real ball left asleep — the two run the
+same code from *different* state, and the preview drifts. That is the invariant-2 failure mode, and
+it earns a test beside the existing `a prediction leaves the real rope exactly where it was`.
+
+Three layers, in order of how much they buy:
+
+1. **Most of the field is `deco/`.** Cables the ball can never reach are art. This is the biggest
+   win and costs nothing.
+2. **Sleeping** for the ones that are real.
+3. **Broadphase**, so a distant sleeping rope is not even visited to be found asleep.
 
 ---
 
@@ -329,6 +517,47 @@ Each one must be ghost-copied in `StepWorld.ghost()` and must come with a predic
 test, same as cables and levers. Non-negotiable: a prediction that is wrong near a gear is worse
 than having no gears.
 
+### The auto-bounce shaft
+
+One section of the composition is a column of facing pads that the ball is meant to ricochet
+between, all the way to the top, on its own — the player holds no input and the sequence is pure
+spectacle.
+
+**Do not get there by tuning.** "Always works" and "carefully tuned bouncy physics" are opposites:
+the ball arrives at the first pad with whatever velocity the player's shot gave it, each bounce
+amplifies the difference, and after five or six the sequence either overshoots or stalls. A
+tolerance that holds in testing fails on the shot nobody tried.
+
+The mechanism to make it deterministic already exists and needs no new system.
+`_apply_trampoline_launch` does not *add* to the incoming velocity — it **replaces** the normal
+component outright:
+
+```
+wanted = (launch_speed + impact_bonus * impact_speed) * form.trampoline_bounce
+v      = tangent * horizontal_keep + normal * wanted
+```
+
+Two of those terms are the only places the arrival velocity enters. Set both to zero **for the pads
+in this shaft** and the outgoing velocity is `normal * launch_speed` — identical every time,
+whatever the ball was doing when it arrived. The bounce becomes a property of the pad's geometry
+rather than of the shot, so the sequence is right by construction and cannot drift when something
+else is tuned.
+
+What it needs:
+
+- **Per-pad `horizontal_keep` and `impact_bonus` on `ShapeBody`**, defaulting to `-1` meaning "use
+  the global" — exactly the pattern `launch_speed` and `bounce_boost` already follow. The global
+  values stay as they are, because an ordinary trampoline elsewhere *should* respond to how hard it
+  was hit.
+- **An input lock while the sequence runs**, so a launch mid-ricochet cannot break out of a
+  cinematic. The limiter already owns the "may this shot go?" question, so this is a flag there, not
+  a special case in the simulation.
+- **A failsafe exit.** If the ball is still in the shaft after N seconds, something is wrong;
+  release the lock rather than trap the player. Cheap insurance against the one entry nobody tried.
+
+The good consequence: this section drops down the risk list. It is on rails, so only its entry and
+its exit need design attention.
+
 ---
 
 ## How we build the level
@@ -338,6 +567,18 @@ than having no gears.
 Every sticky note in the composition is a **beat** — one thing the player learns. One beat, one
 scene, assembled into the full level later. That gives fast iteration (load one beat, not a level
 ten thousand pixels wide), a testable unit, and a clean seam for two people to work either side of.
+
+**This does not mean cutting the level into chunks.** The designer's composition is one continuous
+space and it stays one continuous space: the level is a single scene whose children are *instanced*
+beat sub-scenes, positioned to match the layout exactly. Godot instancing means there is no seam,
+no loading boundary and no visual difference from having drawn it all in one file — and each beat is
+still a scene you can open on its own, play on its own, and run a solution replay against.
+
+So the composition is authoritative for *where everything is*, and the beat split is authoritative
+for *how the work is organised*. They never have to disagree. The one rule that keeps it true: a
+beat scene is positioned by its own root transform and holds nothing that reaches across into
+another beat — a cable anchored in one beat and hanging into the next belongs to one of them, by
+decision, not by accident.
 
 The opening section is the proof that this starts cheaply. Its four beats need **no new systems**:
 
@@ -412,19 +653,23 @@ The brief is that you can work on this without help, so this is a deliverable, n
 Greybox-first reorders this. **Level building does not wait for the pipeline** — it starts now,
 with blocks that already exist and are already tested, and runs alongside everything else.
 
-**Blocking everything: pick the world scale.** It is one number, and the way to get it is to
-measure the ball sprite's width in Figma at the designer's native scale:
+**The world scale is settled: k = 2.5.** That unblocks the first greybox, and the next three
+actions are in a strict order, because each one would have to be redone if it came earlier:
 
-```
-k = designer_ball_width_px / 24
-```
+1. **Apply the scale, in one commit.** Unify `squishy.radius` and `rocky.radius` to **30**, then
+   multiply every length, speed and acceleration in `tuning/tuning_data.gd` by 2.5 and leave every
+   duration alone. The existing prediction-exactness tests verify this for free — they are all
+   relative, so a correct uniform transform leaves all 81 checks green, and *any* number missed or
+   any time value scaled by mistake shows up as a failure. That is the whole reason to do it as its
+   own commit with nothing else in it.
+2. **The slicer, the manifest, then the importer** — in that order, because each feeds the next.
+   Slice the six sheets deterministically with the minimum-area filter that the 1 px specks on Prop
+   Sheet 1 proved necessary; generate the manifest with guessed collision kinds; review the guesses;
+   build piece scenes from it. Needs the scale from step 1 for the closing radius and for `epsilon`.
+3. **Greybox beat 1** — launch, land on the chimney, do not touch the gears — in a new scene file,
+   built from existing blocks, for playtesting. Then the loop in "Who does what" takes over.
 
-Then either the art is drawn to a 24 px ball, or every length, speed and acceleration in the tuning
-is multiplied by *k* with times left alone. The second is a uniform transform the existing
-prediction tests verify for free, because they are relative. **Do this before the first greybox**,
-or every beat built before the decision has to be rescaled afterwards.
-
-After that, three tracks run in parallel:
+Those three run in sequence. Alongside them, three tracks run in parallel:
 
 - **Beats.** Greybox → play → lock → dress, one at a time, starting with the opening section.
   Needs no new systems to begin.
