@@ -99,7 +99,7 @@ func tick(dt: float, ground_material: int, form: BallForm) -> void:
 func note_contact(contact: Contact, form: BallForm) -> void:
 	if mode() != MODE_CHARGES:
 		return
-	if not _surface_refills(face_of(contact.ny), contact.material, form):
+	if not _contact_refills(contact, form):
 		return
 	# With no settle time required, touching it is enough. With one, the ball has to stay.
 	if maxf(0.0, TuningData.get_active().charges_settle_time) <= 0.0:
@@ -182,6 +182,17 @@ static func face_of(ny: float) -> int:
 	if ny >= cos(deg_to_rad(tolerance)):
 		return FACE_CEILING
 	return FACE_WALL
+
+
+## Does this contact put charges back?
+##
+## A trampoline answers for itself and ignores the facing and material rules, because
+## `trampoline.refillsSquishy/Rocky` are unconditional: a pad is a way back into a level, and one
+## you catch a glancing hit off still counts. Everything else goes through the surface rules.
+static func _contact_refills(contact: Contact, form: BallForm) -> bool:
+	if contact.material == SurfaceKind.TRAMPOLINE:
+		return form.refilled_by_trampoline
+	return _surface_refills(face_of(contact.ny), contact.material, form)
 
 
 ## Does touching this surface put charges back? Both the orientation and the material have to

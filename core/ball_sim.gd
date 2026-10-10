@@ -174,7 +174,15 @@ static func _respond_to_shape(
 
 	var out_speed: float = 0.0
 	var boosted: bool = false
-	if material == SurfaceKind.GLASS and not landing:
+	var launched_off: bool = false
+	# A trampoline launches whichever way it is hit, landing or not. This is deliberately NOT the
+	# glass rule: glass gives up its boost on a landing so a glass ledge can be stood on, whereas
+	# a pad that let you stand on it would not be a trampoline. The ball that cannot launch off one
+	# falls through to the ordinary path below and settles on it normally.
+	if material == SurfaceKind.TRAMPOLINE and form.launches_off_trampoline:
+		out_speed = _apply_trampoline_launch(state, form, c.nx, c.ny, vn, impact_speed, shape.launch_speed)
+		launched_off = out_speed > 0.0
+	elif material == SurfaceKind.GLASS and not landing:
 		out_speed = _apply_glass_bounce(state, form, c.nx, c.ny, vn, impact_speed, shape.bounce_boost)
 		boosted = not form.breaks_glass and TuningData.get_active().glass_bounce_mode == 1
 	else:
@@ -190,18 +198,22 @@ static func _respond_to_shape(
 		state.vx += c.nx * (out_speed - vn)
 		state.vy += c.ny * (out_speed - vn)
 
-	var is_impact: bool = impact_speed > form.stop_bounce_threshold or boosted
-	# A boost replaces the sideways speed itself, so landing friction must not scrub it again.
-	if is_impact and not boosted and c.ny < -0.5:
+	var is_impact: bool = impact_speed > form.stop_bounce_threshold or boosted or launched_off
+	# A boost or a launch replaces the sideways speed itself, so landing friction must not scrub it
+	# a second time.
+	if is_impact and not boosted and not launched_off and c.ny < -0.5:
 		_apply_tangential_friction(state, c.nx, c.ny, form.landing_friction)
 	# Steer a climbing bounce upward, after the physical result and the friction, so it has the
-	# last word. Never on a landing: that is what the settle is for.
-	if not landing:
+	# last word. Never on a landing: that is what the settle is for. Never off a trampoline
+	# either -- the pad already decided where the ball is going, and nudging it afterwards would
+	# make a launch off a tilted pad land somewhere other than the ghost line promised.
+	if not landing and not launched_off:
 		_apply_rising_assist(state, form, c.nx, c.ny, material, vy_before)
 
 	if policy != null:
 		var contact: Contact = Contact.make(state, c.nx, c.ny, material, impact_speed, out_speed, is_impact, landing)
 		contact.boosted = boosted
+		contact.launched_off = launched_off
 		return policy.on_contact(contact)
 	return true
 
@@ -229,6 +241,43 @@ static func fan_support(state: BallState, form: BallForm, world: StepWorld) -> b
 		if fan.is_launchable_stream(state.x, state.y, form, world):
 			return true
 	return false
+
+
+# ---------------------------------------------------------------- trampolines
+
+## A launch off a pad, along its normal. Returns the speed leaving along that normal.
+##
+## The same split as the glass boost, and for the same reason: the normal component is REPLACED by
+## the pad's own speed while the tangent is only scaled, so the pad decides how hard the ball
+## leaves and the approach decides where it goes. `trampoline.launchSpeed`, `impactBonus` and
+## `horizontalKeep` line up one for one with glass's `boostStrength`, `boostImpactGain` and
+## `boostSidewaysKeep`, which is why phase 2 could already describe the glass boost as
+## "trampoline-style": this is that same move with the pad's numbers.
+##
+## Unlike the glass boost there is no cap of its own -- `world.maxBallSpeed` catches it on the next
+## step, and the shipped `launchSpeed` of 1150 sits under that 1400 anyway.
+static func _apply_trampoline_launch(
+	state: BallState,
+	form: BallForm,
+	nx: float,
+	ny: float,
+	vn: float,
+	impact_speed: float,
+	override: float,
+) -> float:
+	var t: TuningData = TuningData.get_active()
+	var base: float = override if override >= 0.0 else t.trampoline_launch_speed
+	# A harder landing throws the ball further, so a pad rewards arriving fast.
+	var wanted: float = (base + maxf(0.0, t.trampoline_impact_bonus) * impact_speed) * form.trampoline_bounce
+	if wanted <= 0.0:
+		return 0.0
+
+	var tx: float = state.vx - nx * vn
+	var ty: float = state.vy - ny * vn
+	var keep: float = maxf(0.0, t.trampoline_horizontal_keep)
+	state.vx = tx * keep + nx * wanted
+	state.vy = ty * keep + ny * wanted
+	return wanted
 
 
 # ---------------------------------------------------------------- glass
@@ -532,10 +581,16 @@ static func restitution_for(form: BallForm, material: int) -> float:
 	var t: TuningData = TuningData.get_active()
 	if material == SurfaceKind.GLASS:
 		return maxf(0.0, form.restitution_glass * t.surface_glass_restitution_multiplier)
+	# Only ever reached by a ball that cannot launch off a pad, since the launcher is handled
+	# before the restitution path is taken at all. The shipped 0.12 makes a trampoline nearly dead
+	# underfoot for the squishy ball, which is what makes it the rocky ball's route.
+	if material == SurfaceKind.TRAMPOLINE:
+		return maxf(0.0, t.trampoline_squishy_bounce)
 	return maxf(0.0, form.restitution_wall * t.surface_wall_restitution_multiplier)
 
 
-## Rolling friction per material, in px/s^2.
+## Rolling friction per material, in px/s^2. Trampolines have no friction of their own in the
+## Phaser tuning, so they grip like rock.
 static func friction_for(material: int) -> float:
 	var t: TuningData = TuningData.get_active()
 	return t.surface_glass_friction if material == SurfaceKind.GLASS else t.surface_wall_friction

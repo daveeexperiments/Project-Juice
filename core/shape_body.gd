@@ -47,6 +47,10 @@ var glass_type_override: int = GLASS_AUTO
 var glass_type: int = GLASS_OBSTRUCTION
 ## This pane throws the ball back at its own speed rather than the global boost. -1 = global.
 var bounce_boost: float = -1.0
+## A trampoline pad that launches harder or softer than the global `trampoline.launchSpeed`.
+## -1 = global. The same idea as `bounce_boost` above, for the same reason: one strong pad in a
+## level should not mean retuning every pad in the game.
+var launch_speed: float = -1.0
 ## True for the solid body of a spike strip: collides like wall, but the route check steps over
 ## it, because spikes are flown around rather than sealing a level.
 var spike_base: bool = false

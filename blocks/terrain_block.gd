@@ -2,7 +2,8 @@
 class_name TerrainBlock
 extends Polygon2D
 
-## A solid piece of level: rock or glass, any polygon, optionally rounded into a curve.
+## A solid piece of level: rock, glass or a trampoline pad, any polygon, optionally rounded into
+## a curve.
 ##
 ## Extends Polygon2D on purpose, and that is the whole reason it is editable: Godot only offers
 ## the point-dragging gizmo to the Polygon2D family, and a node drawn purely in `_draw()` has no
@@ -16,14 +17,18 @@ extends Polygon2D
 const INK: Color = Color("141414")
 const GLASS_FILL: Color = Color(0.72, 0.80, 0.84, 0.45)
 const GLASS_LINE: Color = Color(0.23, 0.33, 0.38, 0.9)
+const PAD_FILL: Color = Color(0.20, 0.22, 0.20, 0.55)
+const PAD_LINE: Color = Color("141414")
 const HANDLE_HINT: Color = Color(0.55, 0.55, 0.55, 0.5)
 const HATCH_SPACING: float = 14.0
+const PAD_COILS: int = 9
 
-## Rock or glass. Glass can be broken by the rocky ball, depending on the mode.
+## Rock, glass or a trampoline pad. Glass can be broken by the rocky ball depending on the mode;
+## a pad throws the rocky ball and is nearly dead under the squishy one.
 ##
 ## Named surface_material rather than material because CanvasItem already has a `material`
 ## property (the shader one) and Godot refuses to let a script redefine it.
-@export_enum("Wall:0", "Glass:1") var surface_material: int = 0:
+@export_enum("Wall:0", "Glass:1", "Trampoline:2") var surface_material: int = 0:
 	set(value):
 		surface_material = value
 		queue_redraw()
@@ -44,6 +49,11 @@ var rocky_breaks: int = -1
 @export_range(-1.0, 30.0, 0.5) var respawn_seconds: float = -1.0
 ## This pane throws the ball back at its own speed in Boost mode. -1 = use the global strength.
 @export_range(-1.0, 2000.0, 10.0) var bounce_boost: float = -1.0
+
+@export_group("Trampoline only")
+## This pad launches at its own speed. -1 = use the global `trampoline.launchSpeed`, so one soft
+## pad in a level does not mean retuning every pad in the game.
+@export_range(-1.0, 2500.0, 10.0) var launch_speed: float = -1.0
 
 
 func _ready() -> void:
@@ -67,13 +77,21 @@ func build_shape(shape_id: int) -> ShapeBody:
 	for p: Vector2 in polygon:
 		world_points.append(transform * p)
 
-	var kind: int = SurfaceKind.GLASS if surface_material == 1 else SurfaceKind.WALL
+	var kind: int = SurfaceKind.WALL
+	match surface_material:
+		1:
+			kind = SurfaceKind.GLASS
+		2:
+			kind = SurfaceKind.TRAMPOLINE
+
 	var shape: ShapeBody = ShapeBody.new(shape_id, world_points, kind, smoothing)
 	if kind == SurfaceKind.GLASS:
 		shape.rocky_breaks = rocky_breaks
 		shape.glass_type_override = glass_type
 		shape.respawn_seconds = respawn_seconds
 		shape.bounce_boost = bounce_boost
+	elif kind == SurfaceKind.TRAMPOLINE:
+		shape.launch_speed = launch_speed
 	return shape
 
 
@@ -81,10 +99,13 @@ func _draw() -> void:
 	if polygon.size() < 3:
 		return
 	var outline: PackedVector2Array = ShapeBody.smooth_closed_polygon(polygon, smoothing)
-	if surface_material == 1:
-		_draw_glass(outline)
-	else:
-		draw_colored_polygon(outline, INK)
+	match surface_material:
+		1:
+			_draw_glass(outline)
+		2:
+			_draw_pad(outline)
+		_:
+			draw_colored_polygon(outline, INK)
 
 	# With smoothing on, the handles sit on the drawn points while the ball hits the curve. Show
 	# the straight outline faintly in the editor so the two are never confused.
@@ -92,6 +113,33 @@ func _draw() -> void:
 		var raw: PackedVector2Array = polygon.duplicate()
 		raw.append(polygon[0])
 		draw_polyline(raw, HANDLE_HINT, 1.0)
+
+
+## Placeholder trampoline: a dark pad with a coiled spring scribbled across it, so a pad reads as
+## springy at a glance and is never mistaken for rock. Real art replaces this.
+func _draw_pad(outline: PackedVector2Array) -> void:
+	draw_colored_polygon(outline, PAD_FILL)
+	var bounds: Rect2 = Rect2(outline[0], Vector2.ZERO)
+	for p: Vector2 in outline:
+		bounds = bounds.expand(p)
+
+	# A zig-zag along the pad's long axis, which keeps it readable on a tall pad as well as a wide
+	# one rather than assuming every trampoline is a horizontal slab.
+	var wide: bool = bounds.size.x >= bounds.size.y
+	var coils: PackedVector2Array = PackedVector2Array()
+	for i: int in PAD_COILS + 1:
+		var along: float = float(i) / float(PAD_COILS)
+		var across: float = 0.25 if i % 2 == 0 else 0.75
+		coils.append(Vector2(
+			bounds.position.x + bounds.size.x * (along if wide else across),
+			bounds.position.y + bounds.size.y * (across if wide else along),
+		))
+	if coils.size() >= 2:
+		draw_polyline(coils, PAD_LINE, 2.0)
+
+	var closed: PackedVector2Array = outline.duplicate()
+	closed.append(outline[0])
+	draw_polyline(closed, PAD_LINE, 2.0)
 
 
 ## Ink-style glass: a pale pane with diagonal hatching, as in the Phaser renderer.

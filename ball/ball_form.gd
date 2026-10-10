@@ -130,3 +130,22 @@ var fan_multiplier: float:
 	get:
 		var t: TuningData = TuningData.get_active()
 		return t.rocky_fan_multiplier if id == ROCKY else t.squishy_fan_multiplier
+
+## Does a pad throw this ball? The mirror of `breaks_glass`: glass is the squishy ball's route up
+## and a trampoline is the rocky ball's.
+var launches_off_trampoline: bool:
+	get:
+		var t: TuningData = TuningData.get_active()
+		return t.rocky_launches_off_trampoline if id == ROCKY else t.squishy_launches_off_trampoline
+
+## ...and how much of the pad's launch it gets when it does.
+var trampoline_bounce: float:
+	get:
+		var t: TuningData = TuningData.get_active()
+		return t.rocky_trampoline_bounce if id == ROCKY else t.squishy_trampoline_bounce
+
+## Does a pad put this ball's spent launch budget back?
+var refilled_by_trampoline: bool:
+	get:
+		var t: TuningData = TuningData.get_active()
+		return t.trampoline_refills_rocky if id == ROCKY else t.trampoline_refills_squishy

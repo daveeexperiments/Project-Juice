@@ -292,6 +292,22 @@ extends Resource
 ## On: a pane holds the air back. Off: the wind blows straight through it.
 @export var fans_blocked_by_glass: bool = true
 
+# ---------------------------------------------------------------- trampolines
+
+@export_group("Trampolines")
+## The speed a pad throws a launching ball off at, however gently it was hit (px/s).
+@export_range(0.0, 2500.0, 10.0) var trampoline_launch_speed: float = 1150.0
+## How much of the impact speed is added on top, so arriving fast is rewarded.
+@export_range(0.0, 3.0, 0.05) var trampoline_impact_bonus: float = 0.45
+## Fraction of the sideways speed kept, so the approach still decides where the ball goes.
+@export_range(0.0, 1.5, 0.01) var trampoline_horizontal_keep: float = 0.6
+## What a ball that CANNOT launch off a pad gets instead: nearly nothing, which is what makes a
+## trampoline the rocky ball's route and a dead end for the squishy one.
+@export_range(0.0, 1.5, 0.01) var trampoline_squishy_bounce: float = 0.12
+## Whether a pad puts a spent launch budget back.
+@export var trampoline_refills_squishy: bool = true
+@export var trampoline_refills_rocky: bool = true
+
 # ---------------------------------------------------------------- per-ball actor response
 
 @export_group("Ball vs actors")
@@ -299,6 +315,14 @@ extends Resource
 ## barely drifts in one, because 0.3 of the push cannot beat its own gravity.
 @export_range(0.0, 6.0, 0.05) var squishy_fan_multiplier: float = 2.4
 @export_range(0.0, 6.0, 0.05) var rocky_fan_multiplier: float = 0.3
+## Which ball a trampoline throws. The mirror image of glass, which bounces the squishy ball and
+## ignores the rocky one.
+@export var squishy_launches_off_trampoline: bool = false
+@export var rocky_launches_off_trampoline: bool = true
+## ...and how much of the pad's launch it gets. Squishy's 0 agrees with the switch above rather
+## than contradicting it: it neither launches nor would get anything if it did.
+@export_range(0.0, 2.0, 0.01) var squishy_trampoline_bounce: float = 0.0
+@export_range(0.0, 2.0, 0.01) var rocky_trampoline_bounce: float = 1.0
 
 # ---------------------------------------------------------------- helpers
 
@@ -547,6 +571,17 @@ const FIELD_BY_PATH: Dictionary = {
 	"rocky.glassBreakSpeedKeep": "rocky_glass_break_speed_keep",
 	"squishy.risingAssist": "squishy_rising_assist",
 	"rocky.risingAssist": "rocky_rising_assist",
+
+	"trampoline.launchSpeed": "trampoline_launch_speed",
+	"trampoline.impactBonus": "trampoline_impact_bonus",
+	"trampoline.horizontalKeep": "trampoline_horizontal_keep",
+	"trampoline.squishyBounce": "trampoline_squishy_bounce",
+	"trampoline.refillsSquishy": "trampoline_refills_squishy",
+	"trampoline.refillsRocky": "trampoline_refills_rocky",
+	"squishy.launchesOffTrampoline": "squishy_launches_off_trampoline",
+	"rocky.launchesOffTrampoline": "rocky_launches_off_trampoline",
+	"squishy.trampolineBounce": "squishy_trampoline_bounce",
+	"rocky.trampolineBounce": "rocky_trampoline_bounce",
 
 	"fans.strength": "fans_strength",
 	"fans.targetSpeed": "fans_target_speed",

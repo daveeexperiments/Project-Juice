@@ -56,6 +56,9 @@ func _initialize() -> void:
 	print("\n settling")
 	_test_settle_comes_to_rest(world)
 
+	print("\n trampolines")
+	_test_trampolines()
+
 	print("\n fans")
 	_test_fans()
 
@@ -370,6 +373,137 @@ func _test_settle_comes_to_rest(world: StepWorld) -> void:
 # ---------------------------------------------------------------- helpers
 
 ## The real ball's side of a step: break a pane for good, and note spikes.
+# ---------------------------------------------------------------- trampolines
+
+func _test_trampolines() -> void:
+	var t: TuningData = TuningData.get_active()
+	var squishy: BallForm = BallForm.make(BallForm.SQUISHY)
+	var rocky: BallForm = BallForm.make(BallForm.ROCKY)
+	var world: StepWorld = _plain_room()
+	var pad: ShapeBody = ShapeBody.new(500, PackedVector2Array([
+		Vector2(400.0, 980.0), Vector2(600.0, 980.0), Vector2(600.0, 1000.0), Vector2(400.0, 1000.0),
+	]), SurfaceKind.TRAMPOLINE, 0.0)
+	world.shapes.append(pad)
+	var above: Vector2 = Vector2(500.0, 700.0)
+
+	# The mirror of glass: a pad throws the rocky ball and is nearly dead under the squishy one.
+	# Note the ball comes straight DOWN onto it -- a pad has to launch on a landing, where glass
+	# deliberately gives up its boost so a glass ledge stays standable.
+	var rocky_up: float = _fastest_rise(world, rocky, above)
+	var squishy_up: float = _fastest_rise(world, squishy, above)
+	_check(
+		"a pad throws the rocky ball and barely moves the squishy one",
+		rocky_up > squishy_up * 5.0 and rocky_up > t.trampoline_launch_speed * 0.8,
+		"rocky %.0f px/s up, squishy %.0f" % [rocky_up, squishy_up],
+	)
+
+	# Arriving faster is rewarded, which is what `impactBonus` buys. Measured on the FIRST launch
+	# only: left to bounce, the ball settles into a rhythm off the ceiling and every drop height
+	# converges on the same impact, so a peak-over-time reading cannot see the bonus at all.
+	var from_low: Dictionary = _first_launch_off(world, rocky, Vector2(500.0, 900.0))
+	var from_high: Dictionary = _first_launch_off(world, rocky, Vector2(500.0, 200.0))
+	_check(
+		"a harder landing launches harder",
+		(from_high["out"] as float) > (from_low["out"] as float),
+		"%.0f px/s out from a %.0f impact, %.0f out from a %.0f impact" % [
+			from_low["out"], from_low["impact"], from_high["out"], from_high["impact"],
+		],
+	)
+	_check(
+		"the launch is the pad's speed plus its share of the impact",
+		is_equal_approx(
+			from_high["out"] as float,
+			(t.trampoline_launch_speed + t.trampoline_impact_bonus * (from_high["impact"] as float))
+				* rocky.trampoline_bounce,
+		),
+		"%.1f px/s out for a %.1f impact" % [from_high["out"], from_high["impact"]],
+	)
+
+	# One soft pad in a level should not mean retuning every pad in the game.
+	var soft: StepWorld = _plain_room()
+	var soft_pad: ShapeBody = ShapeBody.new(501, PackedVector2Array([
+		Vector2(400.0, 980.0), Vector2(600.0, 980.0), Vector2(600.0, 1000.0), Vector2(400.0, 1000.0),
+	]), SurfaceKind.TRAMPOLINE, 0.0)
+	soft_pad.launch_speed = 200.0
+	soft.shapes.append(soft_pad)
+	var off_soft: float = _first_launch_off(soft, rocky, above)["out"] as float
+	var off_normal: float = _first_launch_off(world, rocky, above)["out"] as float
+	_check(
+		"a pad can override the global launch speed",
+		off_soft < off_normal * 0.6,
+		"%.0f px/s off a 200 px/s pad vs %.0f off a %.0f one" % [off_soft, off_normal, t.trampoline_launch_speed],
+	)
+
+	# A pad refills a spent budget for both balls, whichever way it was hit.
+	var saved: Dictionary = _apply({
+		"limiter_mode": LaunchLimiter.MODE_CHARGES,
+		"charges_max": 3,
+		"charges_settle_time": 0.0,
+		"trampoline_refills_squishy": true,
+		"trampoline_refills_rocky": true,
+	})
+	var limiter: LaunchLimiter = LaunchLimiter.new()
+	_drain(limiter)
+	limiter.note_contact(_contact_facing(0.0, SurfaceKind.TRAMPOLINE), squishy)
+	var squishy_refill: int = limiter.charges
+	_drain(limiter)
+	limiter.note_contact(_contact_facing(0.0, SurfaceKind.TRAMPOLINE), rocky)
+	var rocky_refill: int = limiter.charges
+	_restore(saved)
+	_check(
+		"a pad refills the budget for both balls, even hit side-on",
+		squishy_refill == 3 and rocky_refill == 3,
+		"squishy %d, rocky %d from a sideways hit a wall rule would have refused" % [squishy_refill, rocky_refill],
+	)
+
+	_test_prediction_through_actors("a trampoline", world, rocky, Vector2(450.0, 700.0), Vector2(80.0, 200.0))
+
+
+## The first launch a pad gives the ball: {out, impact}, both in px/s. Returns out -1 if the ball
+## never got launched at all, which is the right answer for a ball that cannot launch off a pad.
+func _first_launch_off(world: StepWorld, form: BallForm, from: Vector2) -> Dictionary:
+	var state: BallState = BallState.new()
+	state.x = from.x
+	state.y = from.y
+	state.ground_material = SurfaceKind.NONE
+	var watch: LaunchWatch = LaunchWatch.new()
+	var dt: float = TuningData.get_active().fixed_delta()
+	for _i: int in 600:
+		if not BallSim.step_ball(state, form, world, dt, watch):
+			break
+		if watch.out_speed >= 0.0:
+			break
+	return {"out": watch.out_speed, "impact": watch.impact_speed}
+
+
+## Records the first launch off a pad and nothing else.
+class LaunchWatch extends StepPolicy:
+	var out_speed: float = -1.0
+	var impact_speed: float = 0.0
+
+	func on_contact(contact: Contact) -> bool:
+		if contact.launched_off and out_speed < 0.0:
+			out_speed = contact.out_speed
+			impact_speed = contact.impact_speed
+		return true
+
+
+## The fastest upward speed the ball reaches, over a few seconds. Negative Y is up, so this is the
+## biggest -vy seen.
+func _fastest_rise(world: StepWorld, form: BallForm, from: Vector2) -> float:
+	var state: BallState = BallState.new()
+	state.x = from.x
+	state.y = from.y
+	state.ground_material = SurfaceKind.NONE
+	var dt: float = TuningData.get_active().fixed_delta()
+	var best: float = 0.0
+	for _i: int in 400:
+		if not BallSim.step_ball(state, form, world, dt, null):
+			break
+		best = maxf(best, -state.vy)
+	return best
+
+
 # ---------------------------------------------------------------- fans
 
 func _test_fans() -> void:
