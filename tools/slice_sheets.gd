@@ -8,7 +8,7 @@ extends SceneTree
 ##
 ## - `art/manifest/<sheet>.tres` -- the piece list and the collision each one gets. Decisions
 ##   already recorded there are KEPT; only the measured geometry is refreshed.
-## - `art/pieces/<family>/<id>.tres` -- one AtlasTexture per piece, so every element shows up on
+## - `art/atlas/<family>/<id>.tres` -- one AtlasTexture per piece. Internal: the piece SCENES reference
 ##   its own in Godot's FileSystem dock with a thumbnail, and can be dragged straight into a
 ##   scene. These point AT the sheet rather than copying pixels out of it, so 166 of them cost
 ##   almost nothing and there is only ever one copy of the art.
@@ -22,7 +22,7 @@ const FAMILIES: Dictionary = {
 }
 
 const MANIFEST_DIR: String = "res://art/manifest"
-const PIECE_DIR: String = "res://art/pieces"
+const PIECE_DIR: String = "res://art/atlas"
 const REPORT_PATH: String = "res://docs/SHEET_REPORT.md"
 
 
@@ -96,7 +96,7 @@ func _initialize() -> void:
 
 	print("")
 	print("%d pieces across %d sheets. %d still unreviewed." % [total_pieces, _sheet_count(), total_unreviewed])
-	print("manifests in art/manifest/, one texture per piece in art/pieces/, report in docs/SHEET_REPORT.md")
+	print("manifests in art/manifest/, one texture per piece in art/atlas/, report in docs/SHEET_REPORT.md")
 	quit(0)
 
 
@@ -178,7 +178,7 @@ func _sheets_in(folder: String) -> Array[String]:
 
 ## Remove the generated piece textures from one folder.
 ##
-## Deliberately narrow: only `.tres` files, only in `art/pieces/<family>`, which this script is
+## Deliberately narrow: only `.tres` files, only in `art/atlas/<family>`, which this script is
 ## the sole writer of. It does not recurse and it does not touch the source art.
 func _clear_generated(dir_path: String) -> void:
 	var dir: DirAccess = DirAccess.open(dir_path)

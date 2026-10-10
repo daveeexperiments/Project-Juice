@@ -16,11 +16,18 @@ Neither touches the source art.
 | Where | What | Who owns it |
 |---|---|---|
 | `art/manifest/<sheet>.tres` | every piece, and the collision each one gets | **you** — the `kind` field |
-| `art/pieces/<family>/<id>.tres` | one AtlasTexture per piece | generated, don't hand-edit |
 | `art/scenes/<family>/<id>.tscn` | **the placeable piece** — art plus collision | generated, don't hand-edit |
+| `art/atlas/<family>/<id>.tres` | one AtlasTexture per piece, used *by* the scenes above | generated, never placed directly |
 | `docs/SHEET_REPORT.md` | the same list as a table, for reading away from the editor | generated |
 
-`art/scenes/` is what you drag into a level. Each one is:
+> **Drag from `art/scenes/`. Never from `art/atlas/`.**
+>
+> An `art/atlas/` file is a *texture*, not a scene. The Scene dock will refuse to accept it, and
+> dropping it in the viewport gives you a bare `Sprite2D` — the art with no collision at all. The
+> two symptoms together ("it won't drop into the tree" and "it isn't solid") always mean the atlas
+> folder. It was called `art/pieces/` once, which made that mistake very easy to make.
+
+Each placeable scene is:
 
 ```
 <id>          TerrainBlock   the collision, scaled to world size, placeholder ink off
@@ -53,7 +60,7 @@ designer — so the slicer *measures* each shape and guesses. The guess is right
 is never the last word.
 
 1. Open `art/manifest/prop_sheet_1.tres` in the Inspector.
-2. Expand `pieces`, pick one, and look at its thumbnail in `art/pieces/props/`.
+2. Expand `pieces`, pick one, and look at its thumbnail in `art/scenes/props/`.
 3. Set `kind` to what it should collide as.
 4. Tick `reviewed`.
 

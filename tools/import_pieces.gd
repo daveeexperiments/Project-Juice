@@ -130,7 +130,7 @@ func _write_scene(piece: PieceEntry, outline: PackedVector2Array, scale: float, 
 
 func _atlas_path(piece: PieceEntry) -> String:
 	var family: String = "terrain" if piece.id.begins_with("blob") else "props"
-	return "res://art/pieces/%s/%s.tres" % [family, piece.id]
+	return "res://art/atlas/%s/%s.tres" % [family, piece.id]
 
 
 func _manifests() -> Array[String]:

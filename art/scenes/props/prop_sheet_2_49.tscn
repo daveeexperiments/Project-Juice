@@ -1,7 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://blocks/terrain_block.gd" id="1_txvfs"]
-[ext_resource type="Texture2D" path="res://art/pieces/props/prop_sheet_2_49.tres" id="2_5p4ox"]
+[ext_resource type="Texture2D" path="res://art/atlas/props/prop_sheet_2_49.tres" id="2_5p4ox"]
 
 [node name="prop_sheet_2_49" type="Polygon2D" unique_id=1793153149]
 scale = Vector2(0.096, 0.096)
