@@ -39,6 +39,21 @@ const PAD_COILS: int = 9
 		smoothing = value
 		queue_redraw()
 
+## Draw the placeholder ink look. Off for a block that carries real art.
+##
+## The greybox drawing and the collision outline are the same polygon, which is what makes a
+## greybox honest -- what you see is exactly what you hit. A piece imported from the sheets has a
+## sprite instead, and its collision is deliberately NOT the drawn silhouette: a gear is a disc.
+## Drawing the ink under the sprite would paint the collision shape over the art and make every
+## imported gear look like a black circle.
+##
+## It stays a block rather than a bare Sprite2D so that collision, the route check, the editor
+## gizmo and the debug overlay all keep working unchanged.
+@export var show_placeholder: bool = true:
+	set(value):
+		show_placeholder = value
+		queue_redraw()
+
 @export_group("Glass only")
 ## What the rocky ball does to THIS piece. Default follows the global Rocky vs glass mode.
 @export_enum("Default:-1", "Break obstructions only:0", "Always break:1", "Hard hits only:2", "Never break:3", "Pass through:4")
@@ -99,13 +114,14 @@ func _draw() -> void:
 	if polygon.size() < 3:
 		return
 	var outline: PackedVector2Array = ShapeBody.smooth_closed_polygon(polygon, smoothing)
-	match surface_material:
-		1:
-			_draw_glass(outline)
-		2:
-			_draw_pad(outline)
-		_:
-			draw_colored_polygon(outline, INK)
+	if show_placeholder:
+		match surface_material:
+			1:
+				_draw_glass(outline)
+			2:
+				_draw_pad(outline)
+			_:
+				draw_colored_polygon(outline, INK)
 
 	# With smoothing on, the handles sit on the drawn points while the ball hits the curve. Show
 	# the straight outline faintly in the editor so the two are never confused.

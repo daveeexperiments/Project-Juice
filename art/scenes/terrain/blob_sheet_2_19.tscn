@@ -1,0 +1,14 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://blocks/terrain_block.gd" id="1_nd77e"]
+[ext_resource type="Texture2D" path="res://art/pieces/terrain/blob_sheet_2_19.tres" id="2_447x2"]
+
+[node name="blob_sheet_2_19" type="Polygon2D" unique_id=1969007663]
+scale = Vector2(0.096, 0.096)
+polygon = PackedVector2Array(11.23889, 163.0754, 0.16049, 249.78326, 6.24653, 378.93732, 47.20532, 454.84952, 124.47968, 512.6907, 341.06052, 573.7553, 642.96533, 585.8745, 835.5105, 577.6538, 959.9374, 552.75745, 1031.892, 525.77234, 1082.7902, 482.8495, 1104.7495, 409.95465, 1098.7535, 352.06372, 1071.7947, 302.15048, 984.86505, 231.21587, 661.4679, 143.50336, 422.7327, 25.77806, 338.89926, 6.23262, 232.94902, 0.2154, 157.81699, 12.97747, 90.15203, 43.0339, 33.20481, 106.14684)
+script = ExtResource("1_nd77e")
+show_placeholder = false
+
+[node name="Art" type="Sprite2D" parent="." unique_id=1795371660]
+texture = ExtResource("2_447x2")
+centered = false

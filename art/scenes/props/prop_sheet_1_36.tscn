@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://art/pieces/props/prop_sheet_1_36.tres" id="1_8d520"]
+
+[node name="prop_sheet_1_36" type="Node2D" unique_id=1904368969]
+scale = Vector2(0.096, 0.096)
+
+[node name="Art" type="Sprite2D" parent="." unique_id=90979822]
+texture = ExtResource("1_8d520")
+centered = false

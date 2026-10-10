@@ -1,0 +1,14 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://blocks/terrain_block.gd" id="1_aaus5"]
+[ext_resource type="Texture2D" path="res://art/pieces/props/prop_sheet_1_49.tres" id="2_va0ny"]
+
+[node name="prop_sheet_1_49" type="Polygon2D" unique_id=878353413]
+scale = Vector2(0.096, 0.096)
+polygon = PackedVector2Array(478.5, 239, 462.36087, 325.33676, 416.1231, 400.01324, 346.03146, 452.94403, 261.55212, 476.98047, 174.09454, 468.87634, 95.47032, 429.7261, 36.298096, 364.8173, 4.5694275, 282.91614, 4.5694275, 195.08386, 36.298096, 113.18272, 95.47032, 48.273895, 174.09454, 9.1236725, 261.55212, 1.0195313, 346.03146, 25.05597, 416.1231, 77.98674, 462.36087, 152.66324)
+script = ExtResource("1_aaus5")
+show_placeholder = false
+
+[node name="Art" type="Sprite2D" parent="." unique_id=436643282]
+texture = ExtResource("2_va0ny")
+centered = false
