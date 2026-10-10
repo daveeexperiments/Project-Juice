@@ -88,6 +88,65 @@ Two things still unverified: `epsilon` is in source pixels so it scales with *k*
 known what `opaque_to_polygons` does with a *hole* — which matters for the hollow gears and the ring
 the player passes inside. Test that on a real ring rather than assuming.
 
+### What the delivered sheets actually contain
+
+Measured on the real exports in `art/source/`, all six of which came through with **transparent
+backgrounds** — so the importer uses alpha and the darkness fallback is never needed.
+
+| Sheet | Size | Shapes |
+|---|---|---|
+| Blob Sheet 1 / 2 / 3 | 4096² | 11 + 22 + 18 = **51 terrain pieces** |
+| Prop Sheet 1 / 2 | 4096² | 58 + 57 = **115 props** |
+| character sprite sheet | 5600×800 | **7 morph frames** |
+
+**Epsilon ≈ 8 is right for a 4096 sheet**, giving 40–58 vertices per terrain piece. The earlier
+figure of 4 was measured on a 2000 px sheet; the tolerance is in source pixels, so it tracks the
+resolution.
+
+**The props measurement settles the primitives argument with numbers.** Median prop outline is
+**24 vertices** — but 26 of the 115 run past 60, and the worst reach **532**. Those are the gears
+and saw blades: every tooth is real outline detail. Replacing those 26 with circles removes
+something like five thousand vertices from the collision world, and removes the wedging that
+tracing teeth would have caused. A circle is one number.
+
+**Four shapes on Prop Sheet 1 have a 1 px bounding box** — stray pixels or antialiasing residue.
+The importer needs a minimum-area filter, or they become four invisible collision bodies.
+
+### The world scale, from the character sheet
+
+The seven morph frames, left to right:
+
+| Frame | Size | |
+|---|---|---|
+| 1 | 431 × 187 | stretched |
+| 2 | 305 × 194 | stretched |
+| **3** | **250 × 246** | **curled — a resting form** |
+| 4 | 491 × 139 | stretched, the longest |
+| 5 | 454 × 190 | stretched |
+| 6 | 361 × 220 | stretched |
+| **7** | **255 × 248** | **curled — the other resting form** |
+
+So **the worm at rest is a circle about 250 px across** in source art, and that is the number *k*
+is measured from. The sim currently puts it at 24 px, so art used at 1:1 would mean k ≈ 10.4 — far
+too large on screen. The art is authored to be scaled down; what remains is choosing the on-screen
+size:
+
+| On-screen ball | k | Art scale |
+|---|---|---|
+| 48 px | 2 | 19% |
+| 64 px | ~2.7 | 26% |
+| 96 px | 4 | 38% |
+| 128 px | ~5.3 | 51% |
+
+**The morph's extent is now quantified, and it changes the earlier advice.** At its longest the
+worm is 491 px against a 250 px resting circle — it reaches roughly a full radius past the
+collision at each end, which is not the modest overlap assumed earlier.
+
+The fix is orientation rather than restraint: the morph stretches along its own long axis, so if
+that axis is aligned with the **contact tangent when grounded** (and with velocity when airborne),
+the stretch runs *along* a floor instead of into it. Only a wall contact during a morph still
+overlaps, and that is rare and brief.
+
 ### Terrain: simplify, then close by the ball's radius
 
 A ball of radius *r* physically cannot touch the inside of any pocket narrower than *r*. So do not
