@@ -18,6 +18,16 @@ extends SceneTree
 ##  4. SPIKES. Triggered from every side and at maximum speed, including a sweep that would skip
 ##     a thin strip with a point-in-time check.
 ##  5. RESPAWN. Always the most recently raised flag.
+##  6. THE GHOST DOES NOT TOUCH THE LEVEL. Cables and levers are the first actors the ball can
+##     move, so a prediction could move them by accident. If drawing a preview swung the real
+##     ropes or tipped the real planks, merely aiming would rearrange the level and change where
+##     the shot went. Checked knot by knot and angle by angle, and together with (1) for every
+##     new actor: the ghost must leave the world alone AND still match the ball exactly.
+##  7. THE PER-BALL SPLIT. Each surface is a route for one ball and an obstacle for the other --
+##     glass and cables for the squishy ball, trampolines for the rocky one, fans for the squishy
+##     one. These are the checks that would catch the two forms being accidentally made alike.
+##  8. THE LIMITER. All four modes gate and scale launches as specified, and heat in particular
+##     never refuses a shot -- it only weakens it.
 
 const TOLERANCE: float = 0.0001
 
@@ -26,7 +36,7 @@ var _checks: int = 0
 
 
 func _initialize() -> void:
-	print("Project Juice -- phase 2 tests\n")
+	print("Project Juice -- phase 3 tests\n")
 	var world: StepWorld = _build_test_world()
 
 	print(" prediction")
@@ -55,6 +65,24 @@ func _initialize() -> void:
 
 	print("\n settling")
 	_test_settle_comes_to_rest(world)
+
+	print("\n cables")
+	_test_cables()
+
+	print("\n levers")
+	_test_levers()
+
+	print("\n trampolines")
+	_test_trampolines()
+
+	print("\n fans")
+	_test_fans()
+
+	print("\n launch limiter")
+	_test_limiter_grounded()
+	_test_limiter_charges()
+	_test_limiter_heat()
+	_test_limiter_elasticity()
 
 	_report_unmapped()
 
@@ -361,6 +389,818 @@ func _test_settle_comes_to_rest(world: StepWorld) -> void:
 # ---------------------------------------------------------------- helpers
 
 ## The real ball's side of a step: break a pane for good, and note spikes.
+# ---------------------------------------------------------------- levers
+
+func _test_levers() -> void:
+	var t: TuningData = TuningData.get_active()
+	var squishy: BallForm = BallForm.make(BallForm.SQUISHY)
+	var rocky: BallForm = BallForm.make(BallForm.ROCKY)
+
+	# The puzzle: the rocky ball's 6 against the squishy ball's 1. Measured as time-to-the-stop
+	# rather than as a final angle, deliberately -- at the shipped torqueScale of 1 BOTH balls
+	# drive the plank to its limit, so where it ends up cannot tell them apart but how fast it got
+	# there can. That saturation is also the clearest sign that torqueScale is carrying a units
+	# conversion in the original; see the note in core/lever.gd.
+	var squishy_steps: int = _steps_to_tilt_limit(_lever_world(), squishy, Vector2(560.0, 300.0))
+	var rocky_steps: int = _steps_to_tilt_limit(_lever_world(), rocky, Vector2(560.0, 300.0))
+	_check(
+		"the rocky ball tips a plank harder than the squishy ball",
+		rocky_steps < squishy_steps,
+		"%d steps to the stop under rocky, %d under squishy" % [rocky_steps, squishy_steps],
+	)
+
+	# A counterweight on the far end holds that side down until something outweighs it.
+	var saved: Dictionary = _apply({"lever_counterweight": 20.0})
+	var held: StepWorld = _lever_world()
+	_run_from(held, squishy, Vector2(560.0, 300.0), Vector2.ZERO, 1.5)
+	var tipped_against: float = held.levers[0].angle
+	_restore(saved)
+	_check(
+		"a counterweight holds its side down against a light ball",
+		tipped_against < 0.0,
+		"%.1f deg: the weighted end stayed down" % rad_to_deg(tipped_against),
+	)
+
+	# The stop is a stop, whatever is piled on it.
+	var slammed: StepWorld = _lever_world()
+	_run_from(slammed, rocky, Vector2(560.0, 200.0), Vector2(0.0, 400.0), 2.0)
+	_check(
+		"a plank never tips past its limit",
+		absf(slammed.levers[0].angle) <= slammed.levers[0].max_tilt + TOLERANCE,
+		"%.2f deg, limit %.2f" % [rad_to_deg(slammed.levers[0].angle), rad_to_deg(slammed.levers[0].max_tilt)],
+	)
+
+	# Left alone it comes to a dead stop rather than creeping for ever.
+	var swinging: StepWorld = _lever_world()
+	swinging.levers[0].angular_velocity = 3.0
+	var dt: float = t.fixed_delta()
+	for _i: int in 600:
+		swinging.levers[0].step(dt)
+	_check(
+		"a plank left alone settles",
+		is_zero_approx(swinging.levers[0].angular_velocity),
+		"%.6f rad/s after 5 s" % swinging.levers[0].angular_velocity,
+	)
+
+	# Same architectural property cables have, and for the same reason.
+	var live: StepWorld = _lever_world()
+	var angle_before: float = live.levers[0].angle
+	var preview: TrajectoryPreview = TrajectoryPreview.new()
+	preview._ready()
+	preview.simulate(rocky, Vector2(560.0, 300.0), Vector2(0.0, 200.0), live)
+	preview.free()
+	_check(
+		"a prediction leaves the real plank exactly where it was",
+		is_equal_approx(live.levers[0].angle, angle_before),
+		"still at %.6f rad after a preview that lands on it" % live.levers[0].angle,
+	)
+
+	_test_prediction_through_actors("a lever", _lever_world(), rocky, Vector2(560.0, 300.0), Vector2(0.0, 200.0))
+
+
+## A room with one plank pivoted in the middle of it.
+func _lever_world() -> StepWorld:
+	var world: StepWorld = _plain_room()
+	world.levers.append(Lever.new(1, Vector2(500.0, 700.0), 90.0, 6.0, 35.0))
+	return world
+
+
+## How many steps it takes the ball to drive the plank to its stop. Returns the cap if it never
+## gets there.
+func _steps_to_tilt_limit(world: StepWorld, form: BallForm, from: Vector2) -> int:
+	var state: BallState = BallState.new()
+	state.x = from.x
+	state.y = from.y
+	state.ground_material = SurfaceKind.NONE
+	var lever: Lever = world.levers[0]
+	var dt: float = TuningData.get_active().fixed_delta()
+	var cap: int = 900
+	for i: int in cap:
+		if not BallSim.step_ball(state, form, world, dt, null):
+			return cap
+		if absf(lever.angle) >= lever.max_tilt - 0.0001:
+			return i
+	return cap
+
+
+# ---------------------------------------------------------------- cables
+
+func _test_cables() -> void:
+	var t: TuningData = TuningData.get_active()
+	var squishy: BallForm = BallForm.make(BallForm.SQUISHY)
+	var rocky: BallForm = BallForm.make(BallForm.ROCKY)
+
+	# The rope settles into its droop, and the cap holds it there.
+	var world: StepWorld = _cable_world()
+	var rope: Cable = world.cables[0]
+	var dt: float = t.fixed_delta()
+	for _i: int in 600:
+		rope.step(dt)
+	var middle: Vector2 = rope.points[rope.points.size() / 2]
+	var flat: float = rope.anchor_a.lerp(rope.anchor_b, 0.5).y
+	_check(
+		"a rope sags, and never further than maxSag",
+		middle.y > flat and middle.y - flat <= t.cables_max_sag + TOLERANCE,
+		"%.1f px of droop, cap %.0f" % [middle.y - flat, t.cables_max_sag],
+	)
+	_check(
+		"a rope stays pinned at both ends",
+		rope.points[0].is_equal_approx(rope.anchor_a) and rope.points[rope.points.size() - 1].is_equal_approx(rope.anchor_b),
+		"anchors held after 600 steps",
+	)
+
+	# The per-ball split, as with glass and pads: a rope throws the squishy ball and the rocky ball
+	# lands in it dead (0.31 against 0.04, under a 60 px/s threshold).
+	var squishy_hit: Dictionary = _first_contact_with(_cable_world(), squishy, Vector2(500.0, 300.0), Vector2.ZERO, SurfaceKind.CABLE)
+	var rocky_hit: Dictionary = _first_contact_with(_cable_world(), rocky, Vector2(500.0, 300.0), Vector2.ZERO, SurfaceKind.CABLE)
+	_check(
+		"a rope throws the squishy ball and the rocky ball lands in it dead",
+		(squishy_hit["out"] as float) > 100.0 and is_zero_approx(rocky_hit["out"] as float),
+		"squishy out %.0f px/s, rocky out %.0f" % [squishy_hit["out"], rocky_hit["out"]],
+	)
+
+	# A ONE-WAY FLOOR: caught from above, passed straight through from below. Each world is
+	# measured against its OWN rope -- a rope that has been landed on sits lower than one that has
+	# only been flown through, so comparing across the two would be comparing different ropes.
+	var dropped: StepWorld = _cable_world()
+	var landed: BallState = _run_from(dropped, squishy, Vector2(500.0, 300.0), Vector2.ZERO, 2.0)
+	var caught: bool = landed.y < _rope_middle_y(dropped) and landed.ground_material == SurfaceKind.CABLE
+
+	var risen: StepWorld = _cable_world()
+	var rising: BallState = _run_from(risen, squishy, Vector2(500.0, 720.0), Vector2(0.0, -900.0), 0.25)
+	var passed: bool = rising.y < _rope_middle_y(risen)
+
+	_check(
+		"a cable is a one-way floor: caught from above, passed through from below",
+		caught and passed,
+		"came to rest on it at y %.0f (rope %.0f), rose through it to y %.0f (rope %.0f)" % [
+			landed.y, _rope_middle_y(dropped), rising.y, _rope_middle_y(risen),
+		],
+	)
+	# Within half a pixel rather than to float equality: a resting contact is held out by the
+	# push-out pass every step, which settles just shy of the exact figure.
+	var clearance: float = _rope_middle_y(dropped) - landed.y
+	var wanted_clearance: float = squishy.radius + dropped.cables[0].thickness()
+	_check(
+		"a ball resting in a rope sits on top of it, by its radius and the rope's thickness",
+		absf(clearance - wanted_clearance) < 0.5,
+		"%.3f px of clearance, expected %.3f" % [clearance, wanted_clearance],
+	)
+
+	# Sustained mode throws to the ball's own height whatever the drop. Measured with the impact
+	# bonus switched off, since that is the part that is deliberately allowed to vary.
+	var saved: Dictionary = _apply({"cables_sustain_bounce": true, "cables_impact_bonus": 0.0})
+	var low: Dictionary = _first_contact_with(_cable_world(), squishy, Vector2(500.0, 400.0), Vector2.ZERO, SurfaceKind.CABLE)
+	var high: Dictionary = _first_contact_with(_cable_world(), squishy, Vector2(500.0, 100.0), Vector2.ZERO, SurfaceKind.CABLE)
+	var wanted: float = sqrt(2.0 * t.world_gravity * squishy.gravity_multiplier * squishy.sustained_cable_height)
+	_check(
+		"a sustained rope throws to the same height whatever the drop",
+		is_equal_approx(low["out"] as float, wanted) and is_equal_approx(high["out"] as float, wanted),
+		"%.1f and %.1f px/s out, both wanting %.1f" % [low["out"], high["out"], wanted],
+	)
+	_restore(saved)
+
+	# A rope puts a spent budget back, for both balls.
+	saved = _apply({
+		"limiter_mode": LaunchLimiter.MODE_CHARGES,
+		"charges_max": 3,
+		"charges_settle_time": 0.0,
+		"cables_refills_charges": true,
+	})
+	var limiter: LaunchLimiter = LaunchLimiter.new()
+	_drain(limiter)
+	limiter.note_contact(_contact_facing(-1.0, SurfaceKind.CABLE), rocky)
+	var refilled: int = limiter.charges
+	_restore(saved)
+	_check("a rope refills the budget", refilled == 3, "%d charges" % refilled)
+
+	# THE ONE THAT MATTERS MOST. A rope is the first thing in this port the ball can move, so it is
+	# the first thing a prediction could move by accident. If drawing a preview swung the real
+	# ropes, merely aiming would disturb the level and change where the shot went.
+	var live: StepWorld = _cable_world()
+	for _i: int in 120:
+		live.cables[0].step(dt)
+	var before: PackedVector2Array = live.cables[0].points.duplicate()
+	var preview: TrajectoryPreview = TrajectoryPreview.new()
+	preview._ready()
+	preview.simulate(squishy, Vector2(500.0, 300.0), Vector2(60.0, 200.0), live)
+	preview.free()
+	var untouched: bool = true
+	for i: int in before.size():
+		if not before[i].is_equal_approx(live.cables[0].points[i]):
+			untouched = false
+			break
+	_check(
+		"a prediction leaves the real rope exactly where it was",
+		untouched,
+		"all %d knots unmoved by a preview that lands on the rope" % before.size(),
+	)
+
+	_test_prediction_through_actors("a cable", _cable_world(), squishy, Vector2(500.0, 300.0), Vector2(60.0, 200.0))
+
+
+## A room with one slack rope strung across the middle. Built fresh each time, because a rope
+## remembers how it has been swung and a test that reused one would depend on the order.
+func _cable_world() -> StepWorld:
+	var world: StepWorld = _plain_room()
+	world.cables.append(Cable.new(1, Vector2(200.0, 600.0), Vector2(800.0, 600.0), 0.25, -1.0))
+	return world
+
+
+## The first contact with `material`: {out, impact}, or out -1 if it never happened.
+func _first_contact_with(
+	world: StepWorld,
+	form: BallForm,
+	from: Vector2,
+	velocity: Vector2,
+	material: int,
+) -> Dictionary:
+	var state: BallState = BallState.new()
+	state.x = from.x
+	state.y = from.y
+	state.vx = velocity.x
+	state.vy = velocity.y
+	state.ground_material = SurfaceKind.NONE
+	var watch: MaterialWatch = MaterialWatch.new()
+	watch.want = material
+	var dt: float = TuningData.get_active().fixed_delta()
+	for _i: int in 900:
+		if not BallSim.step_ball(state, form, world, dt, watch):
+			break
+		if watch.out_speed >= 0.0:
+			break
+	return {"out": watch.out_speed, "impact": watch.impact_speed}
+
+
+## Records the first contact with one material and counts them all.
+class MaterialWatch extends StepPolicy:
+	var want: int = SurfaceKind.CABLE
+	var out_speed: float = -1.0
+	var impact_speed: float = 0.0
+	var hits: int = 0
+
+	func on_contact(contact: Contact) -> bool:
+		if contact.material == want:
+			hits += 1
+			if out_speed < 0.0:
+				out_speed = contact.out_speed
+				impact_speed = contact.impact_speed
+		return true
+
+
+## Run the ball for `seconds` and hand back everything about where it ended up.
+func _run_from(
+	world: StepWorld,
+	form: BallForm,
+	from: Vector2,
+	velocity: Vector2,
+	seconds: float,
+) -> BallState:
+	var state: BallState = BallState.new()
+	state.x = from.x
+	state.y = from.y
+	state.vx = velocity.x
+	state.vy = velocity.y
+	state.ground_material = SurfaceKind.NONE
+	var dt: float = TuningData.get_active().fixed_delta()
+	for _i: int in int(seconds / dt):
+		if not BallSim.step_ball(state, form, world, dt, null):
+			break
+	return state
+
+
+## How low the middle of the first rope is hanging, in this world.
+func _rope_middle_y(world: StepWorld) -> float:
+	var rope: Cable = world.cables[0]
+	return rope.points[rope.points.size() / 2].y
+
+
+# ---------------------------------------------------------------- trampolines
+
+func _test_trampolines() -> void:
+	var t: TuningData = TuningData.get_active()
+	var squishy: BallForm = BallForm.make(BallForm.SQUISHY)
+	var rocky: BallForm = BallForm.make(BallForm.ROCKY)
+	var world: StepWorld = _plain_room()
+	var pad: ShapeBody = ShapeBody.new(500, PackedVector2Array([
+		Vector2(400.0, 980.0), Vector2(600.0, 980.0), Vector2(600.0, 1000.0), Vector2(400.0, 1000.0),
+	]), SurfaceKind.TRAMPOLINE, 0.0)
+	world.shapes.append(pad)
+	var above: Vector2 = Vector2(500.0, 700.0)
+
+	# The mirror of glass: a pad throws the rocky ball and is nearly dead under the squishy one.
+	# Note the ball comes straight DOWN onto it -- a pad has to launch on a landing, where glass
+	# deliberately gives up its boost so a glass ledge stays standable.
+	var rocky_up: float = _fastest_rise(world, rocky, above)
+	var squishy_up: float = _fastest_rise(world, squishy, above)
+	_check(
+		"a pad throws the rocky ball and barely moves the squishy one",
+		rocky_up > squishy_up * 5.0 and rocky_up > t.trampoline_launch_speed * 0.8,
+		"rocky %.0f px/s up, squishy %.0f" % [rocky_up, squishy_up],
+	)
+
+	# Arriving faster is rewarded, which is what `impactBonus` buys. Measured on the FIRST launch
+	# only: left to bounce, the ball settles into a rhythm off the ceiling and every drop height
+	# converges on the same impact, so a peak-over-time reading cannot see the bonus at all.
+	var from_low: Dictionary = _first_launch_off(world, rocky, Vector2(500.0, 900.0))
+	var from_high: Dictionary = _first_launch_off(world, rocky, Vector2(500.0, 200.0))
+	_check(
+		"a harder landing launches harder",
+		(from_high["out"] as float) > (from_low["out"] as float),
+		"%.0f px/s out from a %.0f impact, %.0f out from a %.0f impact" % [
+			from_low["out"], from_low["impact"], from_high["out"], from_high["impact"],
+		],
+	)
+	_check(
+		"the launch is the pad's speed plus its share of the impact",
+		is_equal_approx(
+			from_high["out"] as float,
+			(t.trampoline_launch_speed + t.trampoline_impact_bonus * (from_high["impact"] as float))
+				* rocky.trampoline_bounce,
+		),
+		"%.1f px/s out for a %.1f impact" % [from_high["out"], from_high["impact"]],
+	)
+
+	# One soft pad in a level should not mean retuning every pad in the game.
+	var soft: StepWorld = _plain_room()
+	var soft_pad: ShapeBody = ShapeBody.new(501, PackedVector2Array([
+		Vector2(400.0, 980.0), Vector2(600.0, 980.0), Vector2(600.0, 1000.0), Vector2(400.0, 1000.0),
+	]), SurfaceKind.TRAMPOLINE, 0.0)
+	soft_pad.launch_speed = 200.0
+	soft.shapes.append(soft_pad)
+	var off_soft: float = _first_launch_off(soft, rocky, above)["out"] as float
+	var off_normal: float = _first_launch_off(world, rocky, above)["out"] as float
+	_check(
+		"a pad can override the global launch speed",
+		off_soft < off_normal * 0.6,
+		"%.0f px/s off a 200 px/s pad vs %.0f off a %.0f one" % [off_soft, off_normal, t.trampoline_launch_speed],
+	)
+
+	# A pad refills a spent budget for both balls, whichever way it was hit.
+	var saved: Dictionary = _apply({
+		"limiter_mode": LaunchLimiter.MODE_CHARGES,
+		"charges_max": 3,
+		"charges_settle_time": 0.0,
+		"trampoline_refills_squishy": true,
+		"trampoline_refills_rocky": true,
+	})
+	var limiter: LaunchLimiter = LaunchLimiter.new()
+	_drain(limiter)
+	limiter.note_contact(_contact_facing(0.0, SurfaceKind.TRAMPOLINE), squishy)
+	var squishy_refill: int = limiter.charges
+	_drain(limiter)
+	limiter.note_contact(_contact_facing(0.0, SurfaceKind.TRAMPOLINE), rocky)
+	var rocky_refill: int = limiter.charges
+	_restore(saved)
+	_check(
+		"a pad refills the budget for both balls, even hit side-on",
+		squishy_refill == 3 and rocky_refill == 3,
+		"squishy %d, rocky %d from a sideways hit a wall rule would have refused" % [squishy_refill, rocky_refill],
+	)
+
+	_test_prediction_through_actors("a trampoline", world, rocky, Vector2(450.0, 700.0), Vector2(80.0, 200.0))
+
+
+## The first launch a pad gives the ball: {out, impact}, both in px/s. Returns out -1 if the ball
+## never got launched at all, which is the right answer for a ball that cannot launch off a pad.
+func _first_launch_off(world: StepWorld, form: BallForm, from: Vector2) -> Dictionary:
+	var state: BallState = BallState.new()
+	state.x = from.x
+	state.y = from.y
+	state.ground_material = SurfaceKind.NONE
+	var watch: LaunchWatch = LaunchWatch.new()
+	var dt: float = TuningData.get_active().fixed_delta()
+	for _i: int in 600:
+		if not BallSim.step_ball(state, form, world, dt, watch):
+			break
+		if watch.out_speed >= 0.0:
+			break
+	return {"out": watch.out_speed, "impact": watch.impact_speed}
+
+
+## Records the first launch off a pad and nothing else.
+class LaunchWatch extends StepPolicy:
+	var out_speed: float = -1.0
+	var impact_speed: float = 0.0
+
+	func on_contact(contact: Contact) -> bool:
+		if contact.launched_off and out_speed < 0.0:
+			out_speed = contact.out_speed
+			impact_speed = contact.impact_speed
+		return true
+
+
+## The fastest upward speed the ball reaches, over a few seconds. Negative Y is up, so this is the
+## biggest -vy seen.
+func _fastest_rise(world: StepWorld, form: BallForm, from: Vector2) -> float:
+	var state: BallState = BallState.new()
+	state.x = from.x
+	state.y = from.y
+	state.ground_material = SurfaceKind.NONE
+	var dt: float = TuningData.get_active().fixed_delta()
+	var best: float = 0.0
+	for _i: int in 400:
+		if not BallSim.step_ball(state, form, world, dt, null):
+			break
+		best = maxf(best, -state.vy)
+	return best
+
+
+# ---------------------------------------------------------------- fans
+
+func _test_fans() -> void:
+	var world: StepWorld = _plain_room()
+	var fan: FanField = FanField.new(1, Vector2(500.0, 1000.0), Vector2.UP, 200.0, 640.0, 1.0)
+	world.fans.append(fan)
+
+	var squishy: BallForm = BallForm.make(BallForm.SQUISHY)
+	var rocky: BallForm = BallForm.make(BallForm.ROCKY)
+	var start: Vector2 = Vector2(500.0, 700.0)
+
+	# The whole fan puzzle in one check: the same stream is a route for one ball and scenery for
+	# the other, because 0.3 of the push cannot beat the rocky ball's 1920 px/s^2 of gravity.
+	var squishy_dy: float = _drift_in_world(world, squishy, start, Vector2.ZERO, 0.3)
+	var rocky_dy: float = _drift_in_world(world, rocky, start, Vector2.ZERO, 0.3)
+	_check(
+		"a fan flies the squishy ball and only slows the rocky one",
+		squishy_dy < 0.0 and rocky_dy > 0.0,
+		"squishy %.0f px, rocky %.0f px over 0.3 s" % [squishy_dy, rocky_dy],
+	)
+
+	# A fan makes up the shortfall and nothing more, so flying a fast shot through one is free.
+	var slow: Vector2 = fan.accel_for(start.x, start.y, 0.0, 0.0, squishy, world)
+	var already_fast: Vector2 = fan.accel_for(start.x, start.y, 0.0, -900.0, squishy, world)
+	_check(
+		"a fan pushes a slow ball and never brakes a fast one",
+		slow.length() > 0.0 and already_fast == Vector2.ZERO,
+		"%.0f px/s^2 at rest, %.0f at 900 px/s up" % [slow.length(), already_fast.length()],
+	)
+
+	# Outside the mouth and behind it there is no stream at all.
+	var off_to_the_side: Vector2 = fan.accel_for(start.x + 180.0, start.y, 0.0, 0.0, squishy, world)
+	var behind_the_mouth: Vector2 = fan.accel_for(start.x, 1040.0, 0.0, 0.0, squishy, world)
+	var past_the_reach: Vector2 = fan.accel_for(start.x, 1000.0 - 700.0, 0.0, 0.0, squishy, world)
+	_check(
+		"the stream has edges, a back and an end",
+		off_to_the_side == Vector2.ZERO and behind_the_mouth == Vector2.ZERO and past_the_reach == Vector2.ZERO,
+		"nothing outside the mouth, behind it, or beyond its reach",
+	)
+
+	# A pane across the stream: a lid when `blockedByGlass` is on, a window when it is off.
+	var lidded: StepWorld = _plain_room()
+	lidded.fans.append(fan)
+	lidded.shapes.append(ShapeBody.new(900, PackedVector2Array([
+		Vector2(400.0, 850.0), Vector2(600.0, 850.0), Vector2(600.0, 870.0), Vector2(400.0, 870.0),
+	]), SurfaceKind.GLASS, 0.0))
+	GlassRules.classify(lidded.shapes)
+
+	var saved: Dictionary = _apply({"fans_blocked_by_glass": true})
+	var blocked: Vector2 = fan.accel_for(start.x, start.y, 0.0, 0.0, squishy, lidded)
+	_restore(saved)
+	saved = _apply({"fans_blocked_by_glass": false})
+	var through: Vector2 = fan.accel_for(start.x, start.y, 0.0, 0.0, squishy, lidded)
+	_restore(saved)
+	_check(
+		"glass is a lid on the stream, or a window, as the tuning says",
+		blocked == Vector2.ZERO and through.length() > 0.0,
+		"blocked %.0f px/s^2, window %.0f" % [blocked.length(), through.length()],
+	)
+
+	# Where the stream reaches must not depend on which ball is asking, or the two forms would
+	# disagree about the shape of the level.
+	saved = _apply({"fans_blocked_by_glass": true})
+	var rocky_blocked: bool = fan.accel_for(start.x, start.y, 0.0, 0.0, rocky, lidded) == Vector2.ZERO
+	_restore(saved)
+	_check(
+		"a pane shadows the stream for both balls alike",
+		rocky_blocked,
+		"the rocky ball's pass-through rules do not move the air",
+	)
+
+	# `grounded.launchFromFan`: being carried is not a dead end.
+	saved = _apply({"grounded_launch_from_fan": true, "grounded_fan_launch_angle": 45.0})
+	var up_is_launchable: bool = fan.is_launchable_stream(start.x, start.y, squishy, world)
+	var sideways: FanField = FanField.new(2, Vector2(500.0, 1000.0), Vector2.RIGHT, 200.0, 640.0, 1.0)
+	var sideways_is_not: bool = not sideways.is_launchable_stream(start.x, start.y, squishy, world)
+	_restore(saved)
+	_check(
+		"an upward stream can be launched from, a sideways one cannot",
+		up_is_launchable and sideways_is_not,
+		"within %.0f deg of up" % 45.0,
+	)
+
+	_test_prediction_through_actors("a fan", world, squishy, start, Vector2(120.0, -300.0))
+
+
+## The regression that matters for every actor: the ghost and the ball must still agree step for
+## step once something other than terrain is pushing them about.
+##
+## Ropes are snapshotted around both runs. The preview should not move them at all -- that is
+## checked separately -- but the real ball certainly does, so the state is put back afterwards and
+## a later test is not handed a rope this one has already swung.
+func _test_prediction_through_actors(
+	label: String,
+	world: StepWorld,
+	form: BallForm,
+	from: Vector2,
+	velocity: Vector2,
+) -> void:
+	var ropes: Dictionary = world.snapshot_actors()
+	var preview: TrajectoryPreview = TrajectoryPreview.new()
+	preview._ready()
+	var predicted: PackedVector2Array = preview.simulate(form, from, velocity, world)
+	preview.free()
+	world.restore_actors(ropes)
+
+	var state: BallState = BallState.new()
+	state.x = from.x
+	state.y = from.y
+	state.vx = velocity.x
+	state.vy = velocity.y
+	state.ground_material = SurfaceKind.NONE
+	var policy: RealPolicy = RealPolicy.new()
+	policy.world = world
+	var dt: float = TuningData.get_active().fixed_delta()
+	var worst: float = 0.0
+	var last: int = predicted.size() - 1
+	for i: int in range(1, predicted.size()):
+		BallSim.step_ball(state, form, world, dt, policy)
+		if i < last:
+			worst = maxf(worst, Vector2(state.x, state.y).distance_to(predicted[i]))
+
+	world.restore_actors(ropes)
+	_check(
+		"prediction stays exact through %s" % label,
+		worst <= TOLERANCE,
+		"worst %.6f px over %d steps" % [worst, predicted.size()],
+	)
+
+
+## A bare room: floor, ceiling, nothing to get in the way. The big test world is too cluttered for
+## actor tests -- its ramp and ledges sit in the way of any stream long enough to matter.
+func _plain_room() -> StepWorld:
+	var world: StepWorld = StepWorld.new()
+	world.shapes.append(ShapeBody.new(1, PackedVector2Array([
+		Vector2(0.0, 1000.0), Vector2(1000.0, 1000.0), Vector2(1000.0, 1060.0), Vector2(0.0, 1060.0),
+	]), SurfaceKind.WALL, 0.0))
+	world.shapes.append(ShapeBody.new(2, PackedVector2Array([
+		Vector2(0.0, 0.0), Vector2(1000.0, 0.0), Vector2(1000.0, 40.0), Vector2(0.0, 40.0),
+	]), SurfaceKind.WALL, 0.0))
+	return world
+
+
+## How far the ball moved on Y over `seconds`. Negative is upward.
+func _drift_in_world(
+	world: StepWorld,
+	form: BallForm,
+	from: Vector2,
+	velocity: Vector2,
+	seconds: float,
+) -> float:
+	var state: BallState = BallState.new()
+	state.x = from.x
+	state.y = from.y
+	state.vx = velocity.x
+	state.vy = velocity.y
+	state.ground_material = SurfaceKind.NONE
+	var dt: float = TuningData.get_active().fixed_delta()
+	for _i: int in int(seconds / dt):
+		if not BallSim.step_ball(state, form, world, dt, null):
+			break
+	return state.y - from.y
+
+
+# ---------------------------------------------------------------- the launch limiter
+#
+# All four modes are pure bookkeeping: they gate and scale launches and never move a ball. That is
+# why these need no world, no scene and no ball -- which is also the argument for keeping the
+# limiter out of `BallSim.step_ball`.
+
+func _test_limiter_grounded() -> void:
+	# allowAirLaunch is TRUE in the shipped tuning, so this also pins down that Grounded mode
+	# ignores it. Grounded mode IS the refusal; if it consulted the switch it would never refuse.
+	var saved: Dictionary = _apply({
+		"limiter_mode": LaunchLimiter.MODE_GROUNDED,
+		"slingshot_allow_air_launch": true,
+	})
+	var limiter: LaunchLimiter = LaunchLimiter.new()
+	limiter.reset()
+	_check("grounded mode fires from the ground", limiter.can_launch(true), "allowed")
+	_check(
+		"grounded mode refuses in mid-air even with air launches allowed",
+		not limiter.can_launch(false),
+		"refused",
+	)
+	_check("grounded mode never weakens a shot", is_equal_approx(limiter.launch_scale(), 1.0), "power x1.00")
+	_restore(saved)
+
+
+func _test_limiter_charges() -> void:
+	var saved: Dictionary = _apply({
+		"limiter_mode": LaunchLimiter.MODE_CHARGES,
+		"charges_max": 3,
+		"charges_settle_time": 0.0,
+		"slingshot_allow_air_launch": true,
+		"charges_refill_on_floor": true,
+		"charges_refill_on_ceiling": false,
+		"charges_refill_on_wall_material": true,
+		"charges_refill_on_glass_material": false,
+		"charges_refill_on_glass_for_rocky": true,
+	})
+	var squishy: BallForm = BallForm.make(BallForm.SQUISHY)
+	var rocky: BallForm = BallForm.make(BallForm.ROCKY)
+	var limiter: LaunchLimiter = LaunchLimiter.new()
+
+	limiter.reset()
+	var fired: int = 0
+	while limiter.can_launch(false) and fired < 10:
+		limiter.note_launch(1.0, false)
+		fired += 1
+	_check(
+		"charges mode spends the budget and then refuses",
+		fired == 3 and not limiter.can_launch(false),
+		"fired %d, %d left" % [fired, limiter.charges],
+	)
+
+	# A rock floor puts the whole budget back.
+	limiter.note_contact(_contact_facing(-1.0, SurfaceKind.WALL), squishy)
+	_check("a rock floor refills the budget", limiter.charges == 3, "%d charges" % limiter.charges)
+
+	# A ceiling is switched off, so hitting one gives nothing back.
+	_drain(limiter)
+	limiter.note_contact(_contact_facing(1.0, SurfaceKind.WALL), squishy)
+	_check("a ceiling refills nothing when switched off", limiter.charges == 0, "%d charges" % limiter.charges)
+
+	# The glass exception: a dead end for the squishy ball, a refill for the rocky one.
+	_drain(limiter)
+	limiter.note_contact(_contact_facing(-1.0, SurfaceKind.GLASS), squishy)
+	var squishy_charges: int = limiter.charges
+	limiter.note_contact(_contact_facing(-1.0, SurfaceKind.GLASS), rocky)
+	var rocky_charges: int = limiter.charges
+	_check(
+		"glass refills for the rocky ball only",
+		squishy_charges == 0 and rocky_charges == 3,
+		"squishy %d, rocky %d" % [squishy_charges, rocky_charges],
+	)
+
+	# With a settle time set, a touch arms the refill but only staying put collects it.
+	_restore(saved)
+	saved = _apply({
+		"limiter_mode": LaunchLimiter.MODE_CHARGES,
+		"charges_max": 3,
+		"charges_settle_time": 0.5,
+	})
+	_drain(limiter)
+	limiter.note_contact(_contact_facing(-1.0, SurfaceKind.WALL), squishy)
+	var on_touch: int = limiter.charges
+	limiter.tick(0.2, SurfaceKind.WALL, squishy)
+	var part_way: int = limiter.charges
+	limiter.tick(0.4, SurfaceKind.WALL, squishy)
+	var settled: int = limiter.charges
+	_check(
+		"a settle time makes the refill wait for the ball to stay",
+		on_touch == 0 and part_way == 0 and settled == 3,
+		"touch %d, 0.2s %d, 0.6s %d" % [on_touch, part_way, settled],
+	)
+
+	# Bouncing away before the dwell is served forfeits it.
+	_drain(limiter)
+	limiter.note_contact(_contact_facing(-1.0, SurfaceKind.WALL), squishy)
+	limiter.tick(0.2, SurfaceKind.WALL, squishy)
+	limiter.tick(0.2, SurfaceKind.NONE, squishy)
+	limiter.tick(0.4, SurfaceKind.WALL, squishy)
+	_check(
+		"leaving early forfeits the refill",
+		limiter.charges == 0,
+		"%d charges after bouncing off mid-dwell" % limiter.charges,
+	)
+	_restore(saved)
+
+
+func _test_limiter_heat() -> void:
+	var saved: Dictionary = _apply({"limiter_mode": LaunchLimiter.MODE_HEAT})
+	var t: TuningData = TuningData.get_active()
+	var squishy: BallForm = BallForm.make(BallForm.SQUISHY)
+	var rocky: BallForm = BallForm.make(BallForm.ROCKY)
+	var limiter: LaunchLimiter = LaunchLimiter.new()
+
+	limiter.reset()
+	limiter.note_launch(1.0, true)
+	var ground_heat: float = limiter.heat
+	limiter.reset()
+	limiter.note_launch(1.0, false)
+	var air_heat: float = limiter.heat
+	_check(
+		"an airborne shot costs more heat than a grounded one",
+		air_heat > ground_heat,
+		"air %.2f vs ground %.2f" % [air_heat, ground_heat],
+	)
+
+	# The documented design: heat never refuses a shot, it only weakens it. This is the behaviour
+	# the Phaser project flagged as an open question (a patient player can still slow-climb), so
+	# it is pinned here deliberately -- if it ever becomes a refusal, this check should fail first.
+	limiter.heat = 1.0
+	_check(
+		"a fully hot ball still fires, weakly",
+		limiter.can_launch(true) and limiter.launch_scale() < 1.0,
+		"power x%.2f" % limiter.launch_scale(),
+	)
+	_check(
+		"power at full heat matches the tuning",
+		is_equal_approx(limiter.launch_scale(), 1.0 - t.heat_power_loss_at_max_heat),
+		"x%.2f, expected x%.2f" % [limiter.launch_scale(), 1.0 - t.heat_power_loss_at_max_heat],
+	)
+	_check(
+		"the ghost line shrinks at full heat",
+		is_equal_approx(limiter.preview_scale(), 1.0 - t.heat_preview_shrink_at_max_heat),
+		"x%.2f" % limiter.preview_scale(),
+	)
+
+	# Cooling rates: rock sheds heat, air barely does. That gap is what makes a chain of airborne
+	# shots cost something, and it is the whole reason the mode works.
+	var on_rock: float = _cooled_over(limiter, 1.0, SurfaceKind.WALL, squishy)
+	var in_air: float = _cooled_over(limiter, 1.0, SurfaceKind.NONE, squishy)
+	_check(
+		"rock sheds heat far faster than air",
+		on_rock > in_air * 10.0,
+		"%.2f per second on rock vs %.2f in air" % [on_rock, in_air]
+	)
+
+	var rocky_on_glass: float = _cooled_over(limiter, 1.0, SurfaceKind.GLASS, rocky)
+	var squishy_on_glass: float = _cooled_over(limiter, 1.0, SurfaceKind.GLASS, squishy)
+	_check(
+		"the rocky ball cools on glass faster than the squishy one",
+		rocky_on_glass > squishy_on_glass,
+		"rocky %.2f vs squishy %.2f" % [rocky_on_glass, squishy_on_glass],
+	)
+	_restore(saved)
+
+
+func _test_limiter_elasticity() -> void:
+	var saved: Dictionary = _apply({
+		"limiter_mode": LaunchLimiter.MODE_ELASTICITY,
+		"elasticity_scale_loss_by_power": true,
+	})
+	var t: TuningData = TuningData.get_active()
+	var squishy: BallForm = BallForm.make(BallForm.SQUISHY)
+	var limiter: LaunchLimiter = LaunchLimiter.new()
+
+	limiter.reset()
+	limiter.note_launch(1.0, true)
+	var after_full: float = limiter.elasticity
+	limiter.reset()
+	limiter.note_launch(0.25, true)
+	var after_gentle: float = limiter.elasticity
+	_check(
+		"a gentle shot wears the band less than a full pull",
+		after_gentle > after_full,
+		"gentle %.3f vs full %.3f" % [after_gentle, after_full],
+	)
+
+	limiter.reset()
+	for _i: int in 40:
+		limiter.note_launch(1.0, false)
+	_check(
+		"wear stops at the floor",
+		is_equal_approx(limiter.elasticity, clampf(t.elasticity_min, 0.0, 1.0)),
+		"%.3f, floor %.3f" % [limiter.elasticity, t.elasticity_min],
+	)
+	_check(
+		"a worn band still fires, weakly",
+		limiter.can_launch(true) and limiter.launch_scale() < 1.0,
+		"power x%.2f" % limiter.launch_scale(),
+	)
+
+	var worn: float = limiter.elasticity
+	limiter.tick(1.0, SurfaceKind.NONE, squishy)
+	_check(
+		"the band recovers with time",
+		limiter.elasticity > worn,
+		"%.3f -> %.3f over a second" % [worn, limiter.elasticity],
+	)
+	_restore(saved)
+
+
+## Spend every charge, so the next thing tested starts from empty.
+func _drain(limiter: LaunchLimiter) -> void:
+	limiter.reset()
+	for _i: int in maxi(1, TuningData.get_active().charges_max) + 2:
+		limiter.note_launch(1.0, false)
+
+
+## Heat shed over `seconds` resting on `material`, starting from fully hot.
+func _cooled_over(limiter: LaunchLimiter, seconds: float, material: int, form: BallForm) -> float:
+	limiter.heat = 1.0
+	limiter.tick(seconds, material, form)
+	return 1.0 - limiter.heat
+
+
+## A contact whose surface faces `ny` (-1 is a floor, +1 a ceiling, 0 a wall).
+func _contact_facing(ny: float, material: int) -> Contact:
+	var at: BallState = BallState.new()
+	return Contact.make(at, 0.0, ny, material, 300.0, 100.0, true, BallSim.is_horizontal_surface(ny))
+
+
 class RealPolicy extends StepPolicy:
 	var world: StepWorld = null
 	var spiked: bool = false

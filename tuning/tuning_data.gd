@@ -96,6 +96,57 @@ extends Resource
 ## Releasing just before landing fires the shot on touchdown.
 @export var grounded_launch_buffer: bool = false
 @export_range(0.0, 0.6, 0.01) var grounded_buffer_time: float = 0.15
+## A fan stream counts as something to launch from, so a player held up by one is not stranded.
+@export var grounded_launch_from_fan: bool = true
+## How far off straight up a fan may blow and still be launchable (degrees).
+@export_range(0.0, 89.0, 1.0) var grounded_fan_launch_angle: float = 45.0
+
+# ---------------------------------------------------------------- the launch limiter
+
+@export_group("Launch limiter")
+## Which rule stops a player launching for ever. Grounded is the Phaser default.
+@export_enum("Grounded:0", "Charges:1", "Heat:2", "Elasticity:3") var limiter_mode: int = 0
+
+@export_subgroup("Charges")
+## Shots in a full budget.
+@export_range(0.0, 12.0, 1.0) var charges_max: int = 3
+## How long the ball must stay on a qualifying surface before the refill lands (seconds).
+@export_range(0.0, 3.0, 0.05) var charges_settle_time: float = 0.0
+## Which way a surface must face to give charges back.
+@export var charges_refill_on_floor: bool = true
+@export var charges_refill_on_wall: bool = true
+@export var charges_refill_on_ceiling: bool = false
+## ...and what it must be made of.
+@export var charges_refill_on_wall_material: bool = true
+@export var charges_refill_on_glass_material: bool = false
+## The exception that makes glass worth hitting as the rocky ball.
+@export var charges_refill_on_glass_for_rocky: bool = true
+
+@export_subgroup("Heat")
+## Heat added by one shot. An airborne shot costs nearly twice a grounded one.
+@export_range(0.0, 1.0, 0.01) var heat_per_ground_launch: float = 0.25
+@export_range(0.0, 1.0, 0.01) var heat_per_air_launch: float = 0.45
+## Heat shed per second, by what the ball is resting on. Air barely cools at all, which is what
+## makes a chain of airborne shots cost something.
+@export_range(0.0, 4.0, 0.01) var heat_cool_rate_wall: float = 1.5
+@export_range(0.0, 4.0, 0.01) var heat_cool_rate_glass: float = 0.6
+## The rocky ball is standing on what it broke rather than resting on the pane, so it cools fast.
+@export_range(0.0, 4.0, 0.01) var heat_rocky_cool_rate_glass: float = 1.5
+@export_range(0.0, 4.0, 0.01) var heat_cool_rate_air: float = 0.08
+## Fraction of launch power lost at full heat. A hot ball still fires, just weakly.
+@export_range(0.0, 1.0, 0.01) var heat_power_loss_at_max_heat: float = 0.6
+## ...and how much of the ghost line is hidden, so a hot shot is less certain as well as weaker.
+@export_range(0.0, 1.0, 0.01) var heat_preview_shrink_at_max_heat: float = 0.7
+
+@export_subgroup("Elasticity")
+## How worn the band can get. 1 is fresh.
+@export_range(0.0, 1.0, 0.01) var elasticity_min: float = 0.3
+@export_range(0.0, 1.0, 0.01) var elasticity_loss_per_launch: float = 0.18
+## On: a gentle shot wears the band less than a full pull.
+@export var elasticity_scale_loss_by_power: bool = true
+## Extra wear for a shot taken in mid-air.
+@export_range(0.0, 4.0, 0.05) var elasticity_air_launch_multiplier: float = 1.0
+@export_range(0.0, 2.0, 0.01) var elasticity_regen_per_second: float = 0.15
 
 # ---------------------------------------------------------------- slingshot
 
@@ -116,6 +167,9 @@ extends Resource
 @export var slingshot_aim_relative_to_surface: bool = false
 ## Grace after leaving a surface during which a shot still counts as grounded (seconds).
 @export_range(0.0, 0.5, 0.01) var slingshot_coyote_time: float = 0.1
+## Whether a mid-air shot is permitted at all. Grounded mode refuses one regardless: that mode IS
+## the refusal. The other three modes consult this, then charge for the shot their own way.
+@export var slingshot_allow_air_launch: bool = true
 ## How fast the world runs while aiming. Never 0: the world slows, it never stops.
 @export_range(0.05, 1.0, 0.05) var slingshot_aim_time_scale: float = 0.3
 ## Seconds to ease into and out of slow motion.
@@ -218,6 +272,125 @@ extends Resource
 @export_range(0.0, 1.5, 0.05) var spikes_respawn_delay: float = 0.35
 ## How close the ball must come to raise a flag (px beyond its own radius).
 @export_range(0.0, 120.0, 2.0) var flags_touch_radius: float = 26.0
+## On: a rope the ball has come to REST in is a checkpoint in its own right. Off in the shipped
+## tuning, which is why cables are a route rather than a safety net.
+@export var flags_cables_are_checkpoints: bool = false
+
+# ---------------------------------------------------------------- fans
+
+@export_group("Fans")
+## How hard the stream closes the gap to its target speed, per second. The fan makes up only the
+## SHORTFALL below the target, so it never brakes a ball that is already going faster.
+@export_range(0.0, 40.0, 0.1) var fans_strength: float = 9.0
+## The speed the stream carries a ball at (px/s).
+@export_range(0.0, 2000.0, 10.0) var fans_target_speed: float = 430.0
+## How far the stream reaches (px).
+@export_range(0.0, 2000.0, 10.0) var fans_range: float = 640.0
+## Exponent on the fade along the stream. 1 is a straight taper; higher keeps the push strong near
+## the mouth and then drops it off a cliff.
+@export_range(0.0, 4.0, 0.05) var fans_falloff: float = 1.1
+## How much push survives at the very edge of the mouth, so a ball slides out of a stream rather
+## than falling off a shelf of air.
+@export_range(0.0, 1.0, 0.01) var fans_sustain: float = 0.55
+## On: a pane holds the air back. Off: the wind blows straight through it.
+@export var fans_blocked_by_glass: bool = true
+
+# ---------------------------------------------------------------- trampolines
+
+@export_group("Trampolines")
+## The speed a pad throws a launching ball off at, however gently it was hit (px/s).
+@export_range(0.0, 2500.0, 10.0) var trampoline_launch_speed: float = 1150.0
+## How much of the impact speed is added on top, so arriving fast is rewarded.
+@export_range(0.0, 3.0, 0.05) var trampoline_impact_bonus: float = 0.45
+## Fraction of the sideways speed kept, so the approach still decides where the ball goes.
+@export_range(0.0, 1.5, 0.01) var trampoline_horizontal_keep: float = 0.6
+## What a ball that CANNOT launch off a pad gets instead: nearly nothing, which is what makes a
+## trampoline the rocky ball's route and a dead end for the squishy one.
+@export_range(0.0, 1.5, 0.01) var trampoline_squishy_bounce: float = 0.12
+## Whether a pad puts a spent launch budget back.
+@export var trampoline_refills_squishy: bool = true
+@export var trampoline_refills_rocky: bool = true
+
+# ---------------------------------------------------------------- cables
+
+@export_group("Cables")
+## How many links the rope is built from. More is smoother and costs more.
+@export_range(2.0, 48.0, 1.0) var cables_segments: int = 14
+## How hard each link pulls back to its rest length, per relaxation pass. 1 is an inelastic rope.
+@export_range(0.0, 1.0, 0.01) var cables_stiffness: float = 0.8
+## Speed the rope loses per step, which is what stops it swinging for ever.
+@export_range(0.0, 1.0, 0.01) var cables_damping: float = 0.04
+## How far the middle may droop below the line between the anchors (px). Stops a long cable
+## sinking to the floor and ceasing to be a route.
+@export_range(0.0, 400.0, 1.0) var cables_max_sag: float = 56.0
+## How much the rope gives rather than throwing. 0 is a rail; 1 is all give.
+@export_range(0.0, 1.0, 0.01) var cables_softness: float = 0.55
+## The rope's collision radius (px).
+@export_range(1.0, 40.0, 0.5) var cables_thickness: float = 5.0
+## How far the rope is shoved aside by the hardest hit there is (px).
+@export_range(0.0, 120.0, 1.0) var cables_recoil: float = 14.0
+## Sideways slowdown while rolling along a rope (px/s^2).
+@export_range(0.0, 2000.0, 10.0) var cables_rolling_friction: float = 70.0
+## How strongly a resting ball is drawn towards the middle of the rope (px/s^2), so it rolls to
+## the low point instead of balancing near an anchor.
+@export_range(0.0, 2000.0, 10.0) var cables_centring_bias: float = 70.0
+## On: a rope always throws the ball to the same height, whatever the drop. Off: an ordinary
+## physical bounce at the ball's own `cableBounce`. The same reflect-or-boost choice glass has.
+@export var cables_sustain_bounce: bool = false
+## How much of the impact speed is added on top of the throw.
+@export_range(0.0, 3.0, 0.05) var cables_impact_bonus: float = 0.55
+## Extra damping applied the moment the rope is hit, so it stops ringing rather than wobbling for
+## the rest of the level.
+@export_range(0.0, 1.0, 0.01) var cables_extra_decay: float = 0.55
+## Whether a rope puts a spent launch budget, or a worn band, back.
+@export var cables_refills_charges: bool = true
+@export var cables_restores_elasticity: bool = false
+
+# ---------------------------------------------------------------- levers
+
+@export_group("Levers")
+## What each ball weighs as far as a plank is concerned. The whole lever puzzle is the gap: the
+## rocky ball tips a seesaw the squishy ball barely disturbs. Separate from the balls' own `mass`
+## so a lever can be rebalanced without changing what a ball weighs everywhere else.
+@export_range(0.0, 40.0, 0.1) var lever_mass_squishy: float = 1.0
+@export_range(0.0, 40.0, 0.1) var lever_mass_rocky: float = 6.0
+## The plank's own mass, which is all its resistance to being turned.
+@export_range(0.1, 40.0, 0.1) var lever_plank_mass: float = 2.5
+## Proportional damping on the swing, which settles it.
+@export_range(0.0, 20.0, 0.05) var lever_angular_damping: float = 2.2
+## A constant drag at the hinge, which brings a settling plank to a dead stop rather than letting
+## it creep.
+@export_range(0.0, 2000.0, 1.0) var lever_pivot_friction: float = 40.0
+## A weight hung on the A end, holding that side down until something outweighs it.
+@export_range(-40.0, 40.0, 0.1) var lever_counterweight: float = 0.0
+## How hard a landing kicks the plank, on top of the ball's standing weight.
+@export_range(0.0, 10.0, 0.05) var lever_impact_strength: float = 1.0
+## Scales every torque at once. The knob to reach for if levers feel uniformly too stiff or too
+## loose.
+@export_range(0.0, 10.0, 0.05) var lever_torque_scale: float = 1.0
+
+# ---------------------------------------------------------------- per-ball actor response
+
+@export_group("Ball vs actors")
+## How much of a fan's push each ball feels. The squishy ball is flown by a stream; the rocky ball
+## barely drifts in one, because 0.3 of the push cannot beat its own gravity.
+@export_range(0.0, 6.0, 0.05) var squishy_fan_multiplier: float = 2.4
+@export_range(0.0, 6.0, 0.05) var rocky_fan_multiplier: float = 0.3
+## Which ball a trampoline throws. The mirror image of glass, which bounces the squishy ball and
+## ignores the rocky one.
+@export var squishy_launches_off_trampoline: bool = false
+@export var rocky_launches_off_trampoline: bool = true
+## ...and how much of the pad's launch it gets. Squishy's 0 agrees with the switch above rather
+## than contradicting it: it neither launches nor would get anything if it did.
+@export_range(0.0, 2.0, 0.01) var squishy_trampoline_bounce: float = 0.0
+@export_range(0.0, 2.0, 0.01) var rocky_trampoline_bounce: float = 1.0
+## How much a rope throws each ball. A cable is the squishy ball's route: 0.31 against the rocky
+## ball's 0.04, which lands on a rope dead.
+@export_range(0.0, 2.0, 0.01) var squishy_cable_bounce: float = 0.31
+@export_range(0.0, 2.0, 0.01) var rocky_cable_bounce: float = 0.04
+## The height a rope throws each ball to when `cables.sustainBounce` is on, whatever the drop (px).
+@export_range(0.0, 600.0, 1.0) var squishy_sustained_cable_height: float = 150.0
+@export_range(0.0, 600.0, 1.0) var rocky_sustained_cable_height: float = 62.0
 
 # ---------------------------------------------------------------- helpers
 
@@ -325,6 +498,8 @@ func _enum_index(path: String, value: String) -> int:
 			return ["reflect", "boost"].find(value)
 		"surfaces.glass.rockyMode":
 			return ["obstruction", "always", "hard", "never", "pass"].find(value)
+		"limiter.mode":
+			return ["grounded", "charges", "heat", "elasticity"].find(value)
 	return -1
 
 
@@ -384,6 +559,34 @@ const FIELD_BY_PATH: Dictionary = {
 	"grounded.coyoteTime": "grounded_coyote_time",
 	"grounded.launchBuffer": "grounded_launch_buffer",
 	"grounded.bufferTime": "grounded_buffer_time",
+	"grounded.launchFromFan": "grounded_launch_from_fan",
+	"grounded.fanLaunchAngle": "grounded_fan_launch_angle",
+
+	"limiter.mode": "limiter_mode",
+
+	"charges.max": "charges_max",
+	"charges.settleTime": "charges_settle_time",
+	"charges.refillOnFloor": "charges_refill_on_floor",
+	"charges.refillOnWall": "charges_refill_on_wall",
+	"charges.refillOnCeiling": "charges_refill_on_ceiling",
+	"charges.refillOnWallMaterial": "charges_refill_on_wall_material",
+	"charges.refillOnGlassMaterial": "charges_refill_on_glass_material",
+	"charges.refillOnGlassForRocky": "charges_refill_on_glass_for_rocky",
+
+	"heat.perGroundLaunch": "heat_per_ground_launch",
+	"heat.perAirLaunch": "heat_per_air_launch",
+	"heat.coolRateWall": "heat_cool_rate_wall",
+	"heat.coolRateGlass": "heat_cool_rate_glass",
+	"heat.rockyCoolRateGlass": "heat_rocky_cool_rate_glass",
+	"heat.coolRateAir": "heat_cool_rate_air",
+	"heat.powerLossAtMaxHeat": "heat_power_loss_at_max_heat",
+	"heat.previewShrinkAtMaxHeat": "heat_preview_shrink_at_max_heat",
+
+	"elasticity.min": "elasticity_min",
+	"elasticity.lossPerLaunch": "elasticity_loss_per_launch",
+	"elasticity.scaleLossByPower": "elasticity_scale_loss_by_power",
+	"elasticity.airLaunchMultiplier": "elasticity_air_launch_multiplier",
+	"elasticity.regenPerSecond": "elasticity_regen_per_second",
 
 	"slingshot.deadZone": "slingshot_dead_zone",
 	"slingshot.dragForMaxPower": "slingshot_drag_for_max_power",
@@ -394,6 +597,7 @@ const FIELD_BY_PATH: Dictionary = {
 	"slingshot.aimRangeMax": "slingshot_aim_range_max",
 	"slingshot.aimRelativeToSurface": "slingshot_aim_relative_to_surface",
 	"slingshot.coyoteTime": "slingshot_coyote_time",
+	"slingshot.allowAirLaunch": "slingshot_allow_air_launch",
 	"slingshot.aimTimeScale": "slingshot_aim_time_scale",
 	"slingshot.aimRampSeconds": "slingshot_aim_ramp_seconds",
 	"slingshot.previewLength": "preview_length",
@@ -436,9 +640,61 @@ const FIELD_BY_PATH: Dictionary = {
 	"squishy.risingAssist": "squishy_rising_assist",
 	"rocky.risingAssist": "rocky_rising_assist",
 
+	"lever.massSquishy": "lever_mass_squishy",
+	"lever.massRocky": "lever_mass_rocky",
+	"lever.plankMass": "lever_plank_mass",
+	"lever.angularDamping": "lever_angular_damping",
+	"lever.pivotFriction": "lever_pivot_friction",
+	"lever.counterweight": "lever_counterweight",
+	"lever.impactStrength": "lever_impact_strength",
+	"lever.torqueScale": "lever_torque_scale",
+
+	# cables.clearAbove and cables.clearBelow are deliberately absent: they read as
+	# level-generation clearance rather than collision, and bending them into the one-way floor
+	# rule would have them decide nothing. See the note in core/cable.gd.
+	"cables.segments": "cables_segments",
+	"cables.stiffness": "cables_stiffness",
+	"cables.damping": "cables_damping",
+	"cables.maxSag": "cables_max_sag",
+	"cables.softness": "cables_softness",
+	"cables.thickness": "cables_thickness",
+	"cables.recoil": "cables_recoil",
+	"cables.rollingFriction": "cables_rolling_friction",
+	"cables.centringBias": "cables_centring_bias",
+	"cables.sustainBounce": "cables_sustain_bounce",
+	"cables.impactBonus": "cables_impact_bonus",
+	"cables.extraDecay": "cables_extra_decay",
+	"cables.refillsCharges": "cables_refills_charges",
+	"cables.restoresElasticity": "cables_restores_elasticity",
+	"squishy.cableBounce": "squishy_cable_bounce",
+	"rocky.cableBounce": "rocky_cable_bounce",
+	"squishy.sustainedCableHeight": "squishy_sustained_cable_height",
+	"rocky.sustainedCableHeight": "rocky_sustained_cable_height",
+
+	"trampoline.launchSpeed": "trampoline_launch_speed",
+	"trampoline.impactBonus": "trampoline_impact_bonus",
+	"trampoline.horizontalKeep": "trampoline_horizontal_keep",
+	"trampoline.squishyBounce": "trampoline_squishy_bounce",
+	"trampoline.refillsSquishy": "trampoline_refills_squishy",
+	"trampoline.refillsRocky": "trampoline_refills_rocky",
+	"squishy.launchesOffTrampoline": "squishy_launches_off_trampoline",
+	"rocky.launchesOffTrampoline": "rocky_launches_off_trampoline",
+	"squishy.trampolineBounce": "squishy_trampoline_bounce",
+	"rocky.trampolineBounce": "rocky_trampoline_bounce",
+
+	"fans.strength": "fans_strength",
+	"fans.targetSpeed": "fans_target_speed",
+	"fans.range": "fans_range",
+	"fans.falloff": "fans_falloff",
+	"fans.sustain": "fans_sustain",
+	"fans.blockedByGlass": "fans_blocked_by_glass",
+	"squishy.fanMultiplier": "squishy_fan_multiplier",
+	"rocky.fanMultiplier": "rocky_fan_multiplier",
+
 	"spikes.graceSeconds": "spikes_grace_seconds",
 	"spikes.respawnDelay": "spikes_respawn_delay",
 	"flags.touchRadius": "flags_touch_radius",
+	"flags.cablesAreCheckpoints": "flags_cables_are_checkpoints",
 	"camera.climbOffset": "camera_climb_offset",
 	"camera.followLerp": "camera_follow_lerp",
 	"camera.fallLookAhead": "camera_look_ahead",

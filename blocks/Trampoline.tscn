@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://cjuicetrampolineblock"]
+
+[ext_resource type="Script" path="res://blocks/terrain_block.gd" id="1_terrain"]
+
+[node name="Trampoline" type="Polygon2D"]
+script = ExtResource("1_terrain")
+polygon = PackedVector2Array(-72, -10, 72, -10, 72, 10, -72, 10)
+surface_material = 2

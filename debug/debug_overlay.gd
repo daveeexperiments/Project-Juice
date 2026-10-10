@@ -80,6 +80,12 @@ func _status_text() -> String:
 	lines.append("ground    %s  ny %.2f" % [SurfaceKind.to_name(s.ground_material), s.ground_ny])
 	lines.append("grounded  %s   launchable %s" % [str(_ball.grounded), str(_ball.on_launchable_ground)])
 	lines.append("settle    %d hops used" % s.settle_hops)
+	# The limiter's own line. The HUD is deliberately not ported, so F1 is the only place charges,
+	# heat or a worn band are visible at all.
+	lines.append("limiter   %s%s" % [
+		_ball.limiter.describe(),
+		"" if _ball.can_launch_now else "   NO SHOT",
+	])
 	var t: TuningData = TuningData.get_active()
 	lines.append("rocky vs glass  %s" % ROCKY_MODE_NAMES[clampi(t.glass_rocky_mode, 0, 4)])
 	lines.append("glass bounce    %s" % ("boost" if t.glass_bounce_mode == 1 else "reflect"))

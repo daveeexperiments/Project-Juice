@@ -9,13 +9,18 @@ extends RefCounted
 ## new force, bounce rule or surface goes in here, never in the ball node or the preview alone.
 ##
 ## The order of operations matters and is kept identical to the Phaser version:
-##   gravity -> air drag -> rolling friction -> speed cap -> substepped movement with spike sweep
-##   and contact resolution -> pending lift -> pass-through drag -> support probe -> roll-off ->
-##   settle re-arm -> spin.
+##   moving actors -> fans -> gravity -> air drag -> rolling friction -> speed cap -> substepped
+##   movement with spike sweep and contact resolution -> pending lift -> pass-through drag ->
+##   support probe -> roll-off -> cable centring -> settle re-arm -> spin.
 ##
-## Phase 2 scope: polygon terrain, glass (all five rocky modes, both bounce modes, the rising
-## assist) and spikes. Fans, trampolines, cables, levers and pickups are later phases; where the
-## Phaser step calls into them, the call site is marked.
+## Scope after phase 3: polygon terrain, glass (all five rocky modes, both bounce modes, the
+## rising assist), spikes, trampolines, fans, cables and levers. Pickups and the juice layer are
+## still to come.
+##
+## THE OTHER RULE, which phase 3 made load-bearing: the moving actors (cables and levers) are
+## advanced ONCE per step, at the top, never inside the substep loop. Stepped per substep they
+## would advance further for a fast ball than a slow one, and the ghost would drift from the ball
+## even though both run this same function.
 
 ## How many push-out passes per substep. Enough for a ball wedged into a corner.
 const RESOLVE_PASSES: int = 4
@@ -26,7 +31,16 @@ const RESOLVE_PASSES: int = 4
 static func step_ball(state: BallState, form: BallForm, world: StepWorld, dt: float, policy: StepPolicy) -> bool:
 	var t: TuningData = TuningData.get_active()
 
-	# Phase 1-2 have no fans, so the gravity scale is always 1. Fans multiply it in Phaser.
+	# The moving actors advance first, ONCE per step and never per substep, so the ball and the
+	# ghost always meet them in the same place at the same time. Stepping them inside the substep
+	# loop would advance them further for a fast ball than a slow one.
+	_step_cables(world, dt)
+	_step_levers(world, dt)
+
+	# Moving air next, so it is part of the same forces phase as gravity and the two can cancel:
+	# a squishy ball in an upward stream hovers because the push and the weight land in the same
+	# step, not because anything special-cases hovering.
+	_apply_fans(state, form, world, dt)
 	state.vy += t.world_gravity * form.gravity_multiplier * dt
 
 	if form.air_drag > 0.0:
@@ -75,6 +89,7 @@ static func step_ball(state: BallState, form: BallForm, world: StepWorld, dt: fl
 	state.ground_material = support[0] as int
 	state.ground_ny = (support[1] as float) if state.ground_material != SurfaceKind.NONE else 0.0
 	_apply_roll_off(state, form, world, dt)
+	_apply_cable_centring(state, form, world, dt)
 	_reset_settle_when_airborne(state, form)
 	state.spin += (state.vx / maxf(1.0, form.radius)) * dt
 	return true
@@ -91,7 +106,20 @@ static func _resolve_contacts(state: BallState, form: BallForm, world: StepWorld
 				policy.on_spikes(spikes, state)
 			return false
 
-		# Later phases resolve levers, trampolines and cables before the static world here.
+		# Ropes before the static world: where a cable crosses a ledge, the thing the ball actually
+		# touched first is the rope, and resolving the ledge first would push the ball through it.
+		var rope: Array = find_cable_contact(state, form, world)
+		if not rope.is_empty():
+			if not _respond_to_cable(state, form, rope[0] as Cable, rope[1] as Dictionary, policy):
+				return false
+			continue
+
+		var plank: Array = find_lever_contact(state, form, world)
+		if not plank.is_empty():
+			if not _respond_to_lever(state, form, plank[0] as Lever, plank[1] as Dictionary, policy):
+				return false
+			continue
+
 		var found: Array = find_shape_contact(state, form, world)
 		if found.is_empty():
 			return true
@@ -171,7 +199,15 @@ static func _respond_to_shape(
 
 	var out_speed: float = 0.0
 	var boosted: bool = false
-	if material == SurfaceKind.GLASS and not landing:
+	var launched_off: bool = false
+	# A trampoline launches whichever way it is hit, landing or not. This is deliberately NOT the
+	# glass rule: glass gives up its boost on a landing so a glass ledge can be stood on, whereas
+	# a pad that let you stand on it would not be a trampoline. The ball that cannot launch off one
+	# falls through to the ordinary path below and settles on it normally.
+	if material == SurfaceKind.TRAMPOLINE and form.launches_off_trampoline:
+		out_speed = _apply_trampoline_launch(state, form, c.nx, c.ny, vn, impact_speed, shape.launch_speed)
+		launched_off = out_speed > 0.0
+	elif material == SurfaceKind.GLASS and not landing:
 		out_speed = _apply_glass_bounce(state, form, c.nx, c.ny, vn, impact_speed, shape.bounce_boost)
 		boosted = not form.breaks_glass and TuningData.get_active().glass_bounce_mode == 1
 	else:
@@ -187,20 +223,270 @@ static func _respond_to_shape(
 		state.vx += c.nx * (out_speed - vn)
 		state.vy += c.ny * (out_speed - vn)
 
-	var is_impact: bool = impact_speed > form.stop_bounce_threshold or boosted
-	# A boost replaces the sideways speed itself, so landing friction must not scrub it again.
-	if is_impact and not boosted and c.ny < -0.5:
+	var is_impact: bool = impact_speed > form.stop_bounce_threshold or boosted or launched_off
+	# A boost or a launch replaces the sideways speed itself, so landing friction must not scrub it
+	# a second time.
+	if is_impact and not boosted and not launched_off and c.ny < -0.5:
 		_apply_tangential_friction(state, c.nx, c.ny, form.landing_friction)
 	# Steer a climbing bounce upward, after the physical result and the friction, so it has the
-	# last word. Never on a landing: that is what the settle is for.
-	if not landing:
+	# last word. Never on a landing: that is what the settle is for. Never off a trampoline
+	# either -- the pad already decided where the ball is going, and nudging it afterwards would
+	# make a launch off a tilted pad land somewhere other than the ghost line promised.
+	if not landing and not launched_off:
 		_apply_rising_assist(state, form, c.nx, c.ny, material, vy_before)
 
 	if policy != null:
 		var contact: Contact = Contact.make(state, c.nx, c.ny, material, impact_speed, out_speed, is_impact, landing)
 		contact.boosted = boosted
+		contact.launched_off = launched_off
 		return policy.on_contact(contact)
 	return true
+
+
+# ---------------------------------------------------------------- fans
+
+## Add up every stream the ball is standing in. Fans hold no state, so this needs no copy for the
+## prediction: the ghost calls the same function against the same fans and gets the same answer.
+static func _apply_fans(state: BallState, form: BallForm, world: StepWorld, dt: float) -> void:
+	if world.fans.is_empty():
+		return
+	var push: Vector2 = Vector2.ZERO
+	for fan: FanField in world.fans:
+		push += fan.accel_for(state.x, state.y, state.vx, state.vy, form, world)
+	if push == Vector2.ZERO:
+		return
+	state.vx += push.x * dt
+	state.vy += push.y * dt
+
+
+## Is the ball being held up by a stream it could launch from? Used by the ball for
+## `grounded.launchFromFan`, so a player carried by a fan is not stranded with no shot.
+static func fan_support(state: BallState, form: BallForm, world: StepWorld) -> bool:
+	for fan: FanField in world.fans:
+		if fan.is_launchable_stream(state.x, state.y, form, world):
+			return true
+	return false
+
+
+# ---------------------------------------------------------------- levers
+
+## Tip every plank by one step. Called once per `step_ball`, never per substep.
+static func _step_levers(world: StepWorld, dt: float) -> void:
+	for lever: Lever in world.levers:
+		lever.step(dt)
+
+
+## The deepest plank contact, or [] when the ball is clear of them all.
+static func find_lever_contact(state: BallState, form: BallForm, world: StepWorld) -> Array:
+	var best_lever: Lever = null
+	var best_hit: Dictionary = {}
+	for lever: Lever in world.levers:
+		var hit: Dictionary = lever.contact_for(state.x, state.y, form.radius)
+		if hit.is_empty():
+			continue
+		if best_hit.is_empty() or (hit["depth"] as float) > (best_hit["depth"] as float):
+			best_lever = lever
+			best_hit = hit
+	if best_hit.is_empty():
+		return []
+	return [best_lever, best_hit]
+
+
+## Land on a plank. The ball bounces off it and loads it at the same time, which is the two-way
+## coupling that makes a lever a lever rather than a moving floor.
+##
+## The bounce is measured against the plank's own surface speed, not against the world, so a
+## plank tipping away from the ball does not hit it as hard as a plank tipping into it. Without
+## that a lever on the way down would still bounce a ball as if it were static.
+static func _respond_to_lever(
+	state: BallState,
+	form: BallForm,
+	lever: Lever,
+	hit: Dictionary,
+	policy: StepPolicy,
+) -> bool:
+	var n: Vector2 = hit["normal"] as Vector2
+	var point: Vector2 = hit["point"] as Vector2
+	state.x += n.x * (hit["depth"] as float)
+	state.y += n.y * (hit["depth"] as float)
+
+	# The ball's weight bears on the plank for as long as it is touching, bounce or no bounce.
+	lever.load_from(point, form)
+
+	var surface: Vector2 = lever.surface_velocity_at(point)
+	var relative_x: float = state.vx - surface.x
+	var relative_y: float = state.vy - surface.y
+	var vn: float = relative_x * n.x + relative_y * n.y
+	if vn >= 0.0:
+		return true
+	var impact_speed: float = -vn
+
+	# A landing kicks it as well as loading it.
+	lever.strike(point, form, impact_speed)
+
+	var restitution: float = restitution_for(form, SurfaceKind.WALL)
+	var out_speed: float = impact_speed * restitution
+	if out_speed < form.stop_bounce_threshold:
+		out_speed = 0.0
+	# Applied to the RELATIVE velocity, then handed back to the world, so the plank carries the
+	# ball with it instead of sliding out from under it.
+	relative_x += n.x * (out_speed - vn)
+	relative_y += n.y * (out_speed - vn)
+	state.vx = relative_x + surface.x
+	state.vy = relative_y + surface.y
+
+	var landing: bool = is_horizontal_surface(n.y)
+	if landing:
+		_apply_tangential_friction(state, n.x, n.y, form.landing_friction)
+
+	if policy != null:
+		var contact: Contact = Contact.make(
+			state, n.x, n.y, SurfaceKind.WALL, impact_speed, out_speed,
+			impact_speed > form.stop_bounce_threshold, landing,
+		)
+		return policy.on_contact(contact)
+	return true
+
+
+# ---------------------------------------------------------------- cables
+
+## Swing every rope by one step. Called once per `step_ball`, never per substep.
+static func _step_cables(world: StepWorld, dt: float) -> void:
+	for cable: Cable in world.cables:
+		cable.step(dt)
+
+
+## The deepest rope contact the ball is actually stopped by, or [] when it is clear of them all.
+## A rope the ball is passing up through reports nothing: that is the one-way floor.
+static func find_cable_contact(state: BallState, form: BallForm, world: StepWorld) -> Array:
+	var best_cable: Cable = null
+	var best_hit: Dictionary = {}
+	for cable: Cable in world.cables:
+		var hit: Dictionary = cable.contact_for(state.x, state.y, form.radius)
+		if hit.is_empty() or not cable.is_solid_from(state.y, hit):
+			continue
+		if best_hit.is_empty() or (hit["depth"] as float) > (best_hit["depth"] as float):
+			best_cable = cable
+			best_hit = hit
+	if best_hit.is_empty():
+		return []
+	return [best_cable, best_hit]
+
+
+## Land on a rope. The rope gives, then throws.
+##
+## Two throws, chosen by `cables.sustainBounce`, and they are the same pair of choices glass has:
+## OFF is a plain physical bounce at the ball's own `cableBounce`, ON always throws to the ball's
+## `sustainedCableHeight` whatever the drop. `cables.impactBonus` applies only to the sustained
+## throw, exactly as glass's `boostImpactGain` applies only in Boost mode -- in the physical case
+## the bounce already scales with the impact, so adding a bonus would count it twice.
+static func _respond_to_cable(
+	state: BallState,
+	form: BallForm,
+	cable: Cable,
+	hit: Dictionary,
+	policy: StepPolicy,
+) -> bool:
+	var t: TuningData = TuningData.get_active()
+	var n: Vector2 = hit["normal"] as Vector2
+	state.x += n.x * (hit["depth"] as float)
+	state.y += n.y * (hit["depth"] as float)
+
+	var vn: float = state.vx * n.x + state.vy * n.y
+	if vn >= 0.0:
+		return true
+	var impact_speed: float = -vn
+
+	# The rope takes the hit before it returns it, and then stops ringing.
+	cable.absorb(hit["index"] as int, n, impact_speed)
+	cable.settle_after_impact()
+
+	var out_speed: float = 0.0
+	var sustained: bool = t.cables_sustain_bounce
+	if sustained:
+		# The speed that reaches exactly that height under this ball's own gravity.
+		var height: float = maxf(0.0, form.sustained_cable_height)
+		var rise: float = sqrt(2.0 * t.world_gravity * form.gravity_multiplier * height)
+		out_speed = rise + maxf(0.0, t.cables_impact_bonus) * impact_speed
+		# A sustained throw REPLACES the speed along the normal and only scales the tangent, the
+		# same split the trampoline and the glass boost use.
+		var tx: float = state.vx - n.x * vn
+		var ty: float = state.vy - n.y * vn
+		state.vx = tx + n.x * out_speed
+		state.vy = ty + n.y * out_speed
+	else:
+		out_speed = impact_speed * maxf(0.0, form.cable_bounce)
+		if out_speed < form.stop_bounce_threshold:
+			out_speed = 0.0
+		state.vx += n.x * (out_speed - vn)
+		state.vy += n.y * (out_speed - vn)
+
+	if policy != null:
+		var contact: Contact = Contact.make(
+			state, n.x, n.y, SurfaceKind.CABLE, impact_speed, out_speed,
+			impact_speed > form.stop_bounce_threshold or sustained, is_horizontal_surface(n.y),
+		)
+		return policy.on_contact(contact)
+	return true
+
+
+## Roll a ball resting on a rope towards the middle of it, so it finds the low point instead of
+## balancing near an anchor. Gravity along the rope already does some of this; the bias makes it
+## prompt, the way `world.rollOffStrength` does for a ledge edge.
+static func _apply_cable_centring(state: BallState, form: BallForm, world: StepWorld, dt: float) -> void:
+	var bias: float = TuningData.get_active().cables_centring_bias
+	if bias <= 0.0 or world.cables.is_empty():
+		return
+	var rope: Array = find_cable_contact(state, form, world)
+	if rope.is_empty():
+		return
+	var cable: Cable = rope[0] as Cable
+	var hit: Dictionary = rope[1] as Dictionary
+	var along: float = hit["along"] as float
+	# Dead centre already: nothing to do, and no direction to pick either.
+	if is_equal_approx(along, 0.5):
+		return
+	var tangent: Vector2 = cable.tangent_at(hit["index"] as int)
+	var towards_middle: float = signf(0.5 - along)
+	state.vx += tangent.x * towards_middle * bias * dt
+	state.vy += tangent.y * towards_middle * bias * dt
+
+
+# ---------------------------------------------------------------- trampolines
+
+## A launch off a pad, along its normal. Returns the speed leaving along that normal.
+##
+## The same split as the glass boost, and for the same reason: the normal component is REPLACED by
+## the pad's own speed while the tangent is only scaled, so the pad decides how hard the ball
+## leaves and the approach decides where it goes. `trampoline.launchSpeed`, `impactBonus` and
+## `horizontalKeep` line up one for one with glass's `boostStrength`, `boostImpactGain` and
+## `boostSidewaysKeep`, which is why phase 2 could already describe the glass boost as
+## "trampoline-style": this is that same move with the pad's numbers.
+##
+## Unlike the glass boost there is no cap of its own -- `world.maxBallSpeed` catches it on the next
+## step, and the shipped `launchSpeed` of 1150 sits under that 1400 anyway.
+static func _apply_trampoline_launch(
+	state: BallState,
+	form: BallForm,
+	nx: float,
+	ny: float,
+	vn: float,
+	impact_speed: float,
+	override: float,
+) -> float:
+	var t: TuningData = TuningData.get_active()
+	var base: float = override if override >= 0.0 else t.trampoline_launch_speed
+	# A harder landing throws the ball further, so a pad rewards arriving fast.
+	var wanted: float = (base + maxf(0.0, t.trampoline_impact_bonus) * impact_speed) * form.trampoline_bounce
+	if wanted <= 0.0:
+		return 0.0
+
+	var tx: float = state.vx - nx * vn
+	var ty: float = state.vy - ny * vn
+	var keep: float = maxf(0.0, t.trampoline_horizontal_keep)
+	state.vx = tx * keep + nx * wanted
+	state.vy = ty * keep + ny * wanted
+	return wanted
 
 
 # ---------------------------------------------------------------- glass
@@ -460,6 +746,27 @@ static func ground_under(state: BallState, form: BallForm, world: StepWorld) -> 
 		if c != null and c.ny < -0.4:
 			# Cladding the rock ignores reports as wall, so resting on it counts as rock.
 			return [GlassRules.effective_material(shape, form), c.ny]
+
+	# A rope holds a ball up too, and a ball lying in one has to know it: otherwise it never gets
+	# the rope's rolling friction, never counts as launchable ground, and a squishy ball that came
+	# to rest in a cable would be stuck there with no shot available.
+	for cable: Cable in world.cables:
+		var hit: Dictionary = cable.contact_for(state.x, probe_y, form.radius)
+		if hit.is_empty() or not cable.is_solid_from(probe_y, hit):
+			continue
+		var n: Vector2 = hit["normal"] as Vector2
+		if n.y < -0.4:
+			return [SurfaceKind.CABLE, n.y]
+
+	# A plank is a floor too, and a tilting one is a floor that can be launched from, which is how
+	# a lever becomes a route rather than just a thing that moves.
+	for lever: Lever in world.levers:
+		var plank: Dictionary = lever.contact_for(state.x, probe_y, form.radius)
+		if plank.is_empty():
+			continue
+		var pn: Vector2 = plank["normal"] as Vector2
+		if pn.y < -0.4:
+			return [SurfaceKind.WALL, pn.y]
 	return [SurfaceKind.NONE, 0.0]
 
 
@@ -504,13 +811,24 @@ static func restitution_for(form: BallForm, material: int) -> float:
 	var t: TuningData = TuningData.get_active()
 	if material == SurfaceKind.GLASS:
 		return maxf(0.0, form.restitution_glass * t.surface_glass_restitution_multiplier)
+	# Only ever reached by a ball that cannot launch off a pad, since the launcher is handled
+	# before the restitution path is taken at all. The shipped 0.12 makes a trampoline nearly dead
+	# underfoot for the squishy ball, which is what makes it the rocky ball's route.
+	if material == SurfaceKind.TRAMPOLINE:
+		return maxf(0.0, t.trampoline_squishy_bounce)
 	return maxf(0.0, form.restitution_wall * t.surface_wall_restitution_multiplier)
 
 
-## Rolling friction per material, in px/s^2.
+## Rolling friction per material, in px/s^2. Trampolines have no friction of their own in the
+## Phaser tuning, so they grip like rock; a rope has its own, and it is slippery by comparison.
 static func friction_for(material: int) -> float:
 	var t: TuningData = TuningData.get_active()
-	return t.surface_glass_friction if material == SurfaceKind.GLASS else t.surface_wall_friction
+	match material:
+		SurfaceKind.GLASS:
+			return t.surface_glass_friction
+		SurfaceKind.CABLE:
+			return t.cables_rolling_friction
+	return t.surface_wall_friction
 
 
 static func _approach(current: float, target: float, max_delta: float) -> float:

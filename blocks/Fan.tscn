@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://cjuicefanblock"]
+
+[ext_resource type="Script" path="res://blocks/fan_block.gd" id="1_fan"]
+
+[node name="Fan" type="Polygon2D"]
+script = ExtResource("1_fan")
+polygon = PackedVector2Array(-56, 0, 56, 0, 56, 18, -56, 18)

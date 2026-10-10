@@ -50,12 +50,16 @@ var cradled: bool:
 	get:
 		return _cradled
 
-## Where the ball is allowed to launch FROM. Grounded mode is the only mode in phase 1.
+## Whether a shot would go at all, as the ACTIVE limiter mode sees it.
+##
+## The cradle is not a special case here: a ball in the fork reports itself grounded, so it flows
+## through the same answer. Short-circuiting on `_cradled` would have let a player with no charges
+## left fire anyway, just by starting the drag on the floor.
 var can_launch: bool:
 	get:
 		if _ball == null:
 			return false
-		return _cradled or _ball.can_launch_now
+		return _ball.can_launch_now
 
 
 func _input(event: InputEvent) -> void:
@@ -213,6 +217,9 @@ func _velocity_for(drag: Vector2) -> Dictionary:
 	var max_speed: float = _ball.form.max_launch_speed
 	var min_speed: float = minf(_ball.form.min_launch_speed, max_speed)
 	var speed: float = lerpf(min_speed, max_speed, power)
+	# A hot ball or a worn band fires weakly. Applied HERE, where the preview reads it too, so the
+	# ghost line always shows the shot that will actually happen rather than the one at full power.
+	speed *= _ball.limiter.launch_scale()
 	var u: Vector2 = -drag / length
 	return {"velocity": u * speed, "power": power}
 
@@ -232,7 +239,7 @@ func update_aim() -> void:
 
 	# The ghost starts where the ball IS, updating every frame as it drifts.
 	var from: Vector2 = Vector2(_ball.state.x, _ball.state.y)
-	_preview.simulate(_ball.form, from, shot["velocity"] as Vector2, _world)
+	_preview.simulate(_ball.form, from, shot["velocity"] as Vector2, _world, _ball.limiter.preview_scale())
 	# Greyed out when the shot cannot go.
 	_preview.show_line(INK if can_launch else FAINT)
 	queue_redraw()

@@ -22,6 +22,9 @@ var landing: bool = false
 var broke_glass: bool = false
 ## True when glass threw the ball back in Boost mode, rather than plainly reflecting it.
 var boosted: bool = false
+## True when a trampoline launched the ball. The limiter watches this: a pad refills a budget, so
+## a trampoline is a way back into the level as well as a way up it.
+var launched_off: bool = false
 
 
 static func make(

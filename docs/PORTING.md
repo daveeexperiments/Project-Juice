@@ -9,8 +9,33 @@ the trajectory prediction, a camera, a test room and headless tests.
 
 **Phase 2:** glass (all five rocky modes, both bounce modes, the rising assist, breaking and
 respawn), spikes, flags and the spawn, the reachability check, and the first building-block
-scenes. Fans, trampolines, levers, cables, pickups, juice, audio and the tuning panel remain for
-later phases.
+scenes.
+
+**Phase 3:** the three remaining launch-limiter modes (charges, heat, elasticity), fans,
+trampolines, cables and the lever. Logic only, by instruction: no HUD, no audio and no juice
+layer, and nothing visual that has no logic behind it. Pickups, the juice/audio layers and the
+tuning panel remain.
+
+> ### Read this before trusting phase 3
+>
+> Phases 1 and 2 were **transcribed** from the Phaser source with the source open. Phase 3 could
+> not be: `D:\REPLAY\ProjectJuice` is not in this repository and was not reachable from the
+> session that wrote it. What stood in for it was the complete tuning contract --
+> `tuning/phaser_tuning.json`, all 250 Phaser values with their defaults -- plus the existing
+> ported code, which in several places turned out to describe the missing systems precisely.
+>
+> So phase 3 is graded, and the grades are in the table below:
+>
+> | | |
+> |---|---|
+> | **transcribed** | the Phaser code was readable, directly or through code already ported from it |
+> | **derived** | the tuning keys and the existing architecture pin the behaviour down; little room to be wrong |
+> | **reconstructed** | the keys name the model but not its arithmetic; structurally right, numerically worth checking |
+>
+> Everything is covered by the headless tests, and the two architectural invariants -- `step_ball`
+> is the only mover, and a prediction cannot disturb the level -- are tested directly for every
+> new actor. Where a reading was uncertain it is flagged in the code at the point it matters, not
+> only here.
 
 ---
 
@@ -46,7 +71,11 @@ later phases.
 | `src/debug/*` (glass/spike/flag marks) | `debug/debug_overlay.gd` | Glass by type, spike boxes, flag reach, respawn point, active mode. |
 | `src/juice/InkParticles.ts` (shards only) | `levels/shatter_effect.gd` | Placeholder shards; the juice layer is a later phase. |
 | `src/systems/LevelLoader.ts` | *(not ported)* | Tiled loading is replaced by scene nodes in the `terrain` group. |
-| `src/systems/LaunchLimiter.ts` | *(partly, in `ball/ball.gd`)* | Only the Grounded mode: `since_launchable` is the port of `sinceGrounded`. Heat, charges and elasticity are not ported. |
+| `src/systems/LaunchLimiter.ts` | `core/launch_limiter.gd` (+ `since_launchable` in `ball/ball.gd`) | **derived.** All four modes. Grounded came in phase 1; charges, heat and elasticity are phase 3. |
+| `src/systems/Actors.ts` (fans) | `core/fan_field.gd` + `blocks/fan_block.gd` | **derived.** Stateless force field; `fans.sustain` is the one reading I am unsure of (see below). |
+| `src/systems/Actors.ts` (trampolines) | `core/ball_sim.gd` (`_apply_trampoline_launch`) | **transcribed in effect.** The pad's three keys line up one for one with the glass boost's, which phase 2 ported from source and already called "trampoline-style". |
+| `src/systems/Actors.ts` (cables) | `core/cable.gd` + `blocks/cable_block.gd` | **reconstructed.** Verlet chain. Structure and the two-mode throw are well pinned; `clearAbove`/`clearBelow` deliberately unmapped. |
+| `src/systems/Actors.ts` (the lever) | `core/lever.gd` + `blocks/lever_block.gd` | **reconstructed.** Torque balance. The parts list is unambiguous, the units are not. |
 
 New files with no Phaser counterpart: `core/game_state.gd` (autoload), `levels/test_room.tscn`,
 `levels/test_room_backdrop.gd`, `tuning/save_default.gd`, `tests/run_tests.gd`, and the building
@@ -81,8 +110,8 @@ Cosmetic only — the simulation and the prediction see the same positions eithe
 **Tuning panel.** Not ported (later phase). The Inspector stands in: select the **Tuning** autoload
 in the *remote* scene tree during play and edit `data`.
 
-**The limiter.** Only Grounded is ported, because it is the only mode phase 1 uses. `canLaunch`
-collapses to "on a launchable surface, or inside the coyote window".
+**The limiter.** Phase 1 ported Grounded only, where `canLaunch` collapses to "on a launchable
+surface, or inside the coyote window". Phase 3 added the other three; see the phase 3 notes.
 
 ---
 
@@ -111,6 +140,76 @@ from the very zone that kills it, and every strip went quietly inert.
 
 **Glass respawn waits for the ball.** A pane whose timer is up but which would reappear around
 the ball waits another 0.25 s, as `restoreShapes` does in Phaser.
+
+## Phase 3 notes
+
+**The limiter is not in the step, on purpose.** It never moves a ball: it answers "may this shot
+go?" and "how hard?" at the moment of release. Keeping it beside the simulation rather than inside
+it means it cannot throw the ghost line off, and the tests can drive a limiter with no ball and no
+scene. It is a `RefCounted` rather than an autoload for the same reason `BallSim` is: a `--script`
+SceneTree has no autoloads.
+
+**Heat never refuses a shot.** It makes one weaker and its ghost line shorter, and that is all.
+This is the behaviour the Phaser project itself flagged as unfinished -- a patient player can
+still slow-climb on repeated airborne shots -- so a test pins it deliberately. If it ever becomes
+a refusal, that test should be the first thing to fail.
+
+**A trampoline is a material, not an actor list.** A pad is a shape made of springy stuff, so it
+goes through `_respond_to_shape` exactly where glass does and gets collision, resting support,
+friction, the route check, the editor gizmo and the drawing for free. Two rules differ from glass:
+a pad launches on a *landing* (glass gives its boost up when landed on so a glass ledge stays
+standable; a pad you could stand on would not be a trampoline), and the rising assist does not run
+after a launch (the pad already decided where the ball is going).
+
+**Cables and levers are the first things the ball can move**, which makes them the first things
+`StepWorld.ghost()` has to copy rather than share. This is not housekeeping: if a preview swung the
+real ropes, drawing one would physically disturb the level, and merely aiming at a shot would
+change where it went. Both are tested for it directly. Both are also advanced once per
+`step_ball` and never per substep -- inside the substep loop a fast ball would advance them
+further than a slow one and the ghost would drift.
+
+**Three things left unmapped on purpose**, so they show up in `docs/unmapped_tuning_keys.txt` as
+"not ported" rather than being bent into roles where they do nothing:
+
+- `cables.clearAbove` (128) and `cables.clearBelow` (96). A cable contact only ever happens within
+  the ball's radius plus the rope's thickness, about 17 px, so bands of that size would be
+  satisfied every single time. Beside `padding.*` and `padding.actorClearance` they read as
+  level-generation clearance -- how much room to leave around a rope so it is landable and
+  passable. The one-way floor rule is pure geometry instead.
+- `trampoline.idleBounce`, `idleSpeed`, `boingInterval`. An idle animation and its sound. No logic
+  behind them, so out of scope by instruction.
+
+**What to check against the Phaser source, in priority order.** Everything here passes its tests;
+these are the places where a test can only prove the code is self-consistent, not that it matches
+the original.
+
+1. **`lever.pivotFriction` and `lever.torqueScale`.** At `torqueScale` 1 the plank slams into its
+   stop under either ball in well under a second, which suggests `torqueScale` is carrying a units
+   conversion in the original. Is `pivotFriction` a torque (as here) or an angular deceleration?
+2. **`fans.sustain` (0.55).** Used here as how much push survives at the very edge of the mouth, so
+   a ball slides out of a stream rather than falling off a shelf of air. It could instead be a
+   decay on the push once the ball is leaving.
+3. **The cable throw.** `cables.softness` is used only for how far the rope gives (`recoil`), not
+   to damp the bounce. `cables.impactBonus` is applied only to the *sustained* throw, mirroring
+   glass, where `boostImpactGain` applies only in Boost mode -- in the physical case the bounce
+   already scales with the impact, so adding a bonus would count it twice.
+4. **Where the fan force goes.** The phase-1 comment in `ball_sim.gd` said "fans multiply [the
+   gravity scale] in Phaser", but `fans.targetSpeed`, `strength` and `falloff` only make sense as a
+   force field converging on a stream speed, which is how it is built. If Phaser really folds it
+   into a gravity scale, the hovering behaviour will differ.
+5. **`squishy.trampolineBounce` is 0 while `squishy.launchesOffTrampoline` is false.** Read here as
+   the two agreeing rather than conflicting: the squishy ball neither launches off a pad nor would
+   get anything if it did. A non-launching ball instead bounces at the global
+   `trampoline.squishyBounce` (0.12).
+
+**One editor caveat.** A cable's two anchors are its Polygon2D points, which gives a flat bounding
+box, so a dead horizontal or vertical cable is hard to click in the empty space around it -- pick
+it up by a handle or from the scene tree. `_edit_get_rect` would be the obvious fix and is not
+available: it is a `CanvasItem` virtual that GDScript may not override, and this project turns that
+warning into an error. Point-editing, which is what the Polygon2D rule is chiefly about, works
+normally.
+
+---
 
 ## Where the Phaser code and the brief disagreed
 
@@ -143,22 +242,21 @@ port follows.
 version 15). It did not exist before this port; the extractor parses `src/config/tuning.ts`
 without modifying it.
 
-**69 values map** onto `TuningData`. **181 do not** and are listed in
-`docs/unmapped_tuning_keys.txt`. They are, in full, the systems this phase excludes:
+**171 values map** onto `TuningData` after phase 3. **79 do not** and are listed in
+`docs/unmapped_tuning_keys.txt`:
 
-| Group | Count | Arrives in |
+| Group | Count | Why it is not here |
 |---|---|---|
-| `juice.*`, `fx.*`, `audio.*` | 50 | the juice/audio phase |
-| `cables.*` | 16 | the cables phase |
-| `risingAssist.*` | 10 | the bounce-styles phase |
-| `pickups.*`, `heat.*`, `charges.*`, `elasticity.*` | 33 | the limiter phase |
-| `trampoline.*`, `fans.*`, `lever.*`, `spikes.*`, `flags.*` | 33 | the actors phases |
+| `juice.*`, `fx.*`, `audio.*` | 50 | the juice and audio layers, excluded by instruction |
+| `pickups.*` | 10 | the pickups phase |
 | `padding.*`, `procedural.*` | 9 | level generation (not planned) |
-| per-ball `breaksGlass`, `cableBounce`, `fanMultiplier`, `trampolineBounce`, … | 18 | with their systems |
-| `surfaces.glass.*` boost/break values | 10 | glass phase 2 |
-| `limiter.mode`, `slingshot.allowAirLaunch`, `camera.mode`, … | 12 | later |
+| `trampoline.*` idle animation | 3 | an idle wobble and its sound: visuals with no logic |
+| `cables.clearAbove`, `clearBelow` | 2 | level-generation clearance, not collision (see above) |
+| `slingshot.aimSlowMoPitch`, `showContactMarkers` | 2 | an audio pitch and a debug marker |
+| `camera.mode` | 1 | only the prototype-D camera is ported |
+| `squishy.screenShake`, `rocky.screenShake` | 2 | juice |
 
-Nothing in that list affects phase-1 behaviour: every value the ported systems read is mapped.
+Every value the ported systems read is mapped. Nothing excluded here changes how a ball moves.
 
 To regenerate after changing the Phaser defaults:
 
@@ -208,6 +306,25 @@ Exit code 0 on success, 1 on any failure. They need no display and no scene.
 | Respawn: starts at spawn, follows the most recent flag | correct |
 | Route check: passes open, catches rock-sealed, ignores glass-sealed | correct |
 | Squishy settles rather than bouncing forever | comes to rest |
+| **Cables:** sag capped at maxSag, anchors stay pinned | 56.0 px of droop, cap 56 |
+| **Cables:** squishy thrown (234 px/s), rocky lands dead (0) | the per-ball split holds |
+| **Cables:** one-way floor, caught from above and passed from below | both |
+| **Cables:** sustained throw ignores the drop height | 502.0 px/s from either height |
+| **Cables:** a preview leaves the real rope bit-identical | all 15 knots unmoved |
+| **Levers:** rocky tips the plank harder than squishy | 107 steps to the stop against 266 |
+| **Levers:** a counterweight holds its side down; the stop holds | both |
+| **Levers:** a preview leaves the real plank's angle unchanged | unmoved |
+| **Trampolines:** rocky thrown, squishy barely moved | 1780 px/s against 81 |
+| **Trampolines:** launch = pad speed + its share of the impact | 1780 = 1150 + 0.45 x 1400 |
+| **Fans:** squishy flown, rocky only slowed | -75 px against +53 px in 0.3 s |
+| **Fans:** never brakes a ball already faster than the stream | 0 px/s^2 at 900 px/s up |
+| **Fans:** a pane shadows the stream for both balls alike | holds |
+| **Limiter:** grounded refuses mid-air even with air launches allowed | refused |
+| **Limiter:** charges spend, refill, and respect the settle dwell | all correct |
+| **Limiter:** glass refills for rocky only | squishy 0, rocky 3 |
+| **Limiter:** a fully hot ball still fires, weakly | power x0.40 |
+| **Limiter:** elasticity wears by pull, floors, and recovers | all correct |
+| Prediction stays exact through a fan, a pad, a cable and a lever | 0.000000 px each |
 The prediction check is the important one: the ghost and the ball run the same
 `BallSim.step_ball`, so anything other than zero means they have been allowed to drift apart.
 
