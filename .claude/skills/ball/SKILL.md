@@ -142,6 +142,27 @@ Either way: resolve it **before** the static world in `_resolve_contacts`. Where
 ledge, the thing the ball touched first is the rope, and resolving the ledge first pushes the ball
 through it.
 
+### The third answer: put the mutable half on the ball
+
+Sometimes "does it hold state the ball can change?" has a better answer than yes. A **pipe** the
+ball travels through looks like an actor with state — something has to remember how far along it
+is — but the pipe itself never changes. What changes is the ball, by being *in transit*.
+
+Putting those few fields on `BallState` instead of on the pipe collapses the whole cost:
+
+- The pipe is immutable, so `ghost()` **shares** it like a fan. No `ghost_copy`, no `snapshot`, no
+  `restore`.
+- The preview already copies a `BallState` wholesale, so the ghost enters, travels and leaves
+  exactly as the ball will, with **no new ghosting code at all**. `core/pipe.gd` cost one test to
+  prove it, and that test reads `0.000000 px`.
+
+The catch, and it is the one that bites: **anything added to `BallState` must be added to
+`copy_from`.** Miss it and the ghost starts outside a pipe the ball is inside — the two run the
+same code from different state, which is the invariant-2 failure in its purest form.
+
+So before reaching for a new actor, ask whether the thing really changes, or whether only the
+ball's *relationship* to it does.
+
 ## Launching
 
 `LaunchLimiter` (`core/launch_limiter.gd`) deliberately lives *beside* the simulation, not inside

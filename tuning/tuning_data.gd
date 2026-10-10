@@ -346,6 +346,21 @@ extends Resource
 @export var cables_refills_charges: bool = true
 @export var cables_restores_elasticity: bool = false
 
+# ---------------------------------------------------------------- pipes
+
+@export_group("Pipes")
+## How wide a pipe's mouth is: how close the ball must come to be drawn in (px).
+@export_range(4.0, 400.0, 1.0) var pipes_mouth_radius: float = 60.0
+## The slowest a ball may travel through a pipe (px/s).
+##
+## **This is a floor, not a speed.** A pipe carries the speed the ball arrived with, so the shot
+## still matters and the preview stays honest -- but without a minimum, a ball that dribbles into
+## a mouth crawls to a halt somewhere inside, and in a game with no walking that is an
+## unrecoverable soft-lock with nothing on screen to explain it.
+@export_range(10.0, 4000.0, 10.0) var pipes_min_speed: float = 600.0
+## Fraction of the entry speed kept. 1 carries it through untouched; lower makes a pipe a cost.
+@export_range(0.0, 2.0, 0.01) var pipes_speed_keep: float = 1.0
+
 # ---------------------------------------------------------------- levers
 
 @export_group("Levers")

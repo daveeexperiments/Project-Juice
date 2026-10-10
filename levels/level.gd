@@ -95,6 +95,13 @@ func _build_world() -> void:
 		world.cables.append(block.build_cable(next_id))
 		next_id += 1
 
+	for node: Node in get_tree().get_nodes_in_group(&"pipes"):
+		var block: PipeBlock = node as PipeBlock
+		if block == null or block.polygon.size() < 2:
+			continue
+		world.pipes.append(block.build_pipe(next_id))
+		next_id += 1
+
 	for node: Node in get_tree().get_nodes_in_group(&"fans"):
 		var block: FanBlock = node as FanBlock
 		if block == null:

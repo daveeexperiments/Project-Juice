@@ -58,6 +58,7 @@ func _initialize() -> void:
 	print("\n spikes and respawn")
 	_test_spikes_every_side()
 	_test_disc_hazard()
+	_test_pipes()
 	_test_spike_sweep_at_speed()
 	_test_respawn_uses_latest_flag()
 
@@ -259,6 +260,76 @@ func _test_spikes_every_side() -> void:
 
 	var clear: bool = not strip.touches(500.0, 500.0 - 10.0 - r * 3.0, r)
 	_check("spikes do not bite from well clear", clear, "3 radii in front is safe")
+
+
+## Pipes: the ball goes in one end and comes out the other.
+func _test_pipes() -> void:
+	var t: TuningData = TuningData.get_active()
+	var form: BallForm = BallForm.make(BallForm.SQUISHY)
+
+	# An L-shaped run: in at the top, down, then along to the right.
+	var world: StepWorld = StepWorld.new()
+	var pipe: Pipe = Pipe.make(1, PackedVector2Array([
+		Vector2(500.0, 400.0), Vector2(500.0, 900.0), Vector2(1100.0, 900.0),
+	]), 60.0)
+	world.pipes.append(pipe)
+
+	var state: BallState = BallState.new()
+	state.x = 500.0
+	state.y = 380.0
+	state.vy = 900.0
+	var dt: float = t.fixed_delta()
+
+	var took_it: bool = false
+	var exited_at: Vector2 = Vector2.ZERO
+	var exit_velocity: Vector2 = Vector2.ZERO
+	for _i: int in 600:
+		BallSim.step_ball(state, form, world, dt, null)
+		if state.pipe_id >= 0:
+			took_it = true
+		elif took_it:
+			exited_at = Vector2(state.x, state.y)
+			exit_velocity = Vector2(state.vx, state.vy)
+			break
+
+	_check("a ball entering a mouth is taken into the pipe", took_it,
+		"entered the run at the near end")
+	_check("and comes out of the far end", exited_at.distance_to(Vector2(1100.0, 900.0)) < 2.0,
+		"left at %s, far mouth is (1100, 900)" % exited_at)
+	_check("travelling the way the pipe points", exit_velocity.normalized().dot(Vector2.RIGHT) > 0.99,
+		"leaves heading %s" % exit_velocity.normalized())
+
+	# The floor. Without it a ball that dribbles in crawls to a halt somewhere inside, cannot
+	# launch and cannot walk out -- an unrecoverable soft-lock with nothing on screen to explain it.
+	var crawler: BallState = BallState.new()
+	crawler.x = 500.0
+	crawler.y = 380.0
+	crawler.vy = 1.0
+	BallSim.step_ball(crawler, form, world, dt, null)
+	_check("a barely-moving ball is still carried through",
+		crawler.pipe_id >= 0 and crawler.pipe_speed >= t.pipes_min_speed,
+		"carried at %.0f px/s, floor is %.0f" % [crawler.pipe_speed, t.pipes_min_speed])
+
+	# A mouth must not swallow the ball it just ejected.
+	_check("a mouth does not re-take a ball leaving it",
+		pipe.entry_for(1100.0, 900.0, 400.0, 0.0) < 0.0,
+		"outward velocity at the far mouth is not an entry")
+
+	# And the point of the whole design: the ghost copies a BallState, so transit comes with it.
+	var ghost: BallState = BallState.new()
+	ghost.x = 500.0
+	ghost.y = 380.0
+	ghost.vy = 900.0
+	var real: BallState = BallState.new()
+	real.copy_from(ghost)
+	var worst: float = 0.0
+	for _i: int in 240:
+		BallSim.step_ball(real, form, world, dt, null)
+		BallSim.step_ball(ghost, form, world.ghost(), dt, null)
+		worst = maxf(worst, Vector2(real.x, real.y).distance_to(Vector2(ghost.x, ghost.y)))
+	_check("a prediction through a pipe matches the real path",
+		worst < TOLERANCE,
+		"worst divergence %.6f px" % worst)
 
 
 ## A disc hazard: a saw blade or a spiked gear, deadly all the way round.

@@ -183,6 +183,31 @@ simulation, and a static hazard is *shared* by the trajectory preview rather tha
 costs the prediction nothing. Only a gear the ball is meant to **ride** needs real rotation, and
 that is a different system.
 
+## Making a pipe the ball travels through
+
+A pipe run is **per placement**, not per piece, because it only exists once you have laid several
+pieces end to end. So it is a node you draw, not a field you set.
+
+1. Add a `PipeBlock` to the level (`blocks/` — it is a Polygon2D, so you get the point tool).
+2. Put the first point in one mouth, the last in the other, and a point at each bend. It is a
+   **polyline**, not a closed shape — the last point does not join the first.
+3. Untick `collides` on the pipe art itself. The walls are not what stops the ball; being on the
+   rail is, and leaving them solid just means the ball bounces off the outside of a pipe it should
+   be inside.
+
+Both ends accept a ball. Which one a shot enters by is decided by where it arrives.
+
+What the ball does inside:
+
+- **It carries the speed it arrived with**, so a hard shot comes out hard and the preview stays
+  honest about it — but never below `pipes.minSpeed`. That floor is not tidiness: without it a ball
+  that dribbles into a mouth crawls to a halt somewhere inside, where it cannot launch and cannot
+  walk out, and nothing on screen explains why the run is over.
+- **No gravity inside.** A pipe is a rail. With gravity a vertical pipe becomes a climb that can
+  fail halfway and slide back, which is both a soft-lock risk and unreadable in the preview.
+- **The ghost goes through it too**, exactly as the ball will. That falls out of the design rather
+  than being built: transit lives on the ball's state, which the preview already copies.
+
 ## Two different questions about collision
 
 They get answered in two different places, and keeping them apart is what lets placement and

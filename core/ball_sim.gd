@@ -37,6 +37,19 @@ static func step_ball(state: BallState, form: BallForm, world: StepWorld, dt: fl
 	_step_cables(world, dt)
 	_step_levers(world, dt)
 
+	# A ball in a pipe is on a rail: no gravity, no drag, no contacts. The branch sits AFTER the
+	# moving actors so the rest of the world keeps running while the ball is inside -- ropes still
+	# swing, planks still settle -- and the ghost sees the same thing, because it runs this same
+	# code from the same state.
+	if state.pipe_id >= 0:
+		_advance_in_pipe(state, world, dt)
+		return true
+
+	var entered: Pipe = _pipe_taking(state, world)
+	if entered != null:
+		_enter_pipe(state, entered)
+		return true
+
 	# Moving air next, so it is part of the same forces phase as gravity and the two can cancel:
 	# a squishy ball in an upward stream hovers because the push and the weight land in the same
 	# step, not because anything special-cases hovering.
@@ -835,3 +848,92 @@ static func _approach(current: float, target: float, max_delta: float) -> float:
 	if current < target:
 		return minf(current + max_delta, target)
 	return maxf(current - max_delta, target)
+
+
+# ---------------------------------------------------------------- pipes
+
+## The pipe this ball is being drawn into, or null.
+static func _pipe_taking(state: BallState, world: StepWorld) -> Pipe:
+	for pipe: Pipe in world.pipes:
+		if pipe.entry_for(state.x, state.y, state.vx, state.vy) >= 0.0:
+			return pipe
+	return null
+
+
+## Take the ball onto the rail.
+##
+## The speed carried in is the speed it arrived with, so a hard shot comes out hard and the
+## preview stays honest about it -- but never below `pipes.minSpeed`, because a ball that crawls
+## to a halt inside a pipe cannot launch and cannot walk out.
+static func _enter_pipe(state: BallState, pipe: Pipe) -> void:
+	var t: TuningData = TuningData.get_active()
+	var at: float = pipe.entry_for(state.x, state.y, state.vx, state.vy)
+	var speed: float = Vector2(state.vx, state.vy).length() * maxf(0.0, t.pipes_speed_keep)
+
+	state.pipe_id = pipe.id
+	state.pipe_distance = at
+	state.pipe_heading = 1.0 if at <= 0.0 else -1.0
+	state.pipe_speed = maxf(speed, t.pipes_min_speed)
+
+	var where: Vector2 = pipe.point_at(at)
+	state.x = where.x
+	state.y = where.y
+	# Nothing is supporting it, and a stale ground material would give it friction and a launch it
+	# should not have while it is inside.
+	state.ground_material = SurfaceKind.NONE
+	state.settle_hops = 0
+	state.pending_lift = 0.0
+
+
+## Carry the ball along, and put it out of whichever end it reaches.
+static func _advance_in_pipe(state: BallState, world: StepWorld, dt: float) -> void:
+	var pipe: Pipe = _pipe_by_id(world, state.pipe_id)
+	if pipe == null or not pipe.is_usable():
+		# The pipe is gone from under it -- let it fall rather than freeze in mid-air.
+		_leave_pipe(state, Vector2.DOWN, 0.0)
+		return
+
+	state.pipe_distance += state.pipe_speed * state.pipe_heading * dt
+
+	if state.pipe_distance <= 0.0 or state.pipe_distance >= pipe.length():
+		var end: float = 0.0 if state.pipe_distance <= 0.0 else pipe.length()
+		var out: Vector2 = pipe.point_at(end)
+		state.x = out.x
+		state.y = out.y
+		# Leaving along the pipe, in the direction of travel. `direction_at` always points towards
+		# the far end, so a ball going backwards leaves against it.
+		_leave_pipe(state, pipe.direction_at(end) * state.pipe_heading, state.pipe_speed)
+		return
+
+	var here: Vector2 = pipe.point_at(state.pipe_distance)
+	state.x = here.x
+	state.y = here.y
+	# Kept in step with the rail so anything reading velocity -- the camera, the visuals, the
+	# aim -- sees the ball moving the way it looks like it is moving.
+	var heading: Vector2 = pipe.direction_at(state.pipe_distance) * state.pipe_heading
+	state.vx = heading.x * state.pipe_speed
+	state.vy = heading.y * state.pipe_speed
+	state.spin += state.pipe_speed / maxf(1.0, _radius_of(state)) * dt
+
+
+static func _leave_pipe(state: BallState, heading: Vector2, speed: float) -> void:
+	var out: Vector2 = heading.normalized() if heading.length_squared() > 0.0 else Vector2.DOWN
+	state.vx = out.x * speed
+	state.vy = out.y * speed
+	state.pipe_id = -1
+	state.pipe_distance = 0.0
+	state.pipe_heading = 1.0
+	state.pipe_speed = 0.0
+
+
+static func _pipe_by_id(world: StepWorld, pipe_id: int) -> Pipe:
+	for pipe: Pipe in world.pipes:
+		if pipe.id == pipe_id:
+			return pipe
+	return null
+
+
+## The rolling radius for spin while in transit. The form is not passed this far down, and the two
+## forms are the same circle, so either serves.
+static func _radius_of(_state: BallState) -> float:
+	return maxf(1.0, TuningData.get_active().squishy_radius)
