@@ -97,9 +97,13 @@ func step(dt: float) -> void:
 	var torque: float = _applied_torque
 	_applied_torque = 0.0
 
-	# A counterweight hung on the A end, pulling that side down for ever.
+	# A counterweight hung on the A end, pulling that side down for ever. Like the ball's weight
+	# below, its leverage falls off as cos(angle): what turns a plank is the HORIZONTAL distance
+	# from the pivot, and a tilted plank has less of it. Without that the counterweight pulls just
+	# as hard at the stop as it does level, which made the lever a knife edge -- a ball outweighing
+	# it four to one could still fail to lift it.
 	if absf(t.lever_counterweight) > 0.0:
-		torque -= t.lever_counterweight * t.world_gravity * half_length * t.lever_torque_scale
+		torque -= t.lever_counterweight * t.world_gravity * half_length * cos(angle) * t.lever_torque_scale
 
 	angular_velocity += (torque / inertia()) * dt
 
@@ -124,14 +128,20 @@ func step(dt: float) -> void:
 
 
 ## Load the plank with a ball sitting on it at `point`, which is what makes a lever a scale.
-## Torque is mass x gravity x the arm, so standing further out does more.
+##
+## Torque is mass x gravity x the HORIZONTAL distance to the pivot, which is the along-plank arm
+## foreshortened by cos(angle). A ball sitting on a plank already at its stop therefore turns it
+## less than the same ball sitting on a level one, as it should.
 func load_from(point: Vector2, form: BallForm) -> void:
 	var t: TuningData = TuningData.get_active()
 	var arm: float = (point - pivot).dot(along())
-	_applied_torque += mass_of(form) * t.world_gravity * arm * t.lever_torque_scale
+	_applied_torque += mass_of(form) * t.world_gravity * arm * cos(angle) * t.lever_torque_scale
 
 
 ## Kick the plank with an impact, on top of the standing load.
+##
+## No cos here, unlike the weights above: an impact arrives along the plank's NORMAL, so its lever
+## arm is the full along-plank distance however the plank is tilted.
 func strike(point: Vector2, form: BallForm, impact_speed: float) -> void:
 	var t: TuningData = TuningData.get_active()
 	var arm: float = (point - pivot).dot(along())

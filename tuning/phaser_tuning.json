@@ -36,7 +36,7 @@
       "plankMass": 2.5,
       "angularDamping": 2.2,
       "pivotFriction": 40,
-      "counterweight": 0,
+      "counterweight": 1.5,
       "impactStrength": 1,
       "torqueScale": 1
     },

@@ -396,29 +396,28 @@ func _test_levers() -> void:
 	var squishy: BallForm = BallForm.make(BallForm.SQUISHY)
 	var rocky: BallForm = BallForm.make(BallForm.ROCKY)
 
-	# The puzzle: the rocky ball's 6 against the squishy ball's 1. Measured as time-to-the-stop
-	# rather than as a final angle, deliberately -- at the shipped torqueScale of 1 BOTH balls
-	# drive the plank to its limit, so where it ends up cannot tell them apart but how fast it got
-	# there can. That saturation is also the clearest sign that torqueScale is carrying a units
-	# conversion in the original; see the note in core/lever.gd.
-	var squishy_steps: int = _steps_to_tilt_limit(_lever_world(), squishy, Vector2(560.0, 300.0))
-	var rocky_steps: int = _steps_to_tilt_limit(_lever_world(), rocky, Vector2(560.0, 300.0))
+	# A lever is a COUNTERWEIGHT SWITCH. The weight parks the plank against one stop and holds it
+	# there until something heavy enough lands on the raised end. These two checks run against the
+	# SHIPPED tuning rather than overriding it, because the switch is a designed threshold: the
+	# counterweight (1.5) sits deliberately between the squishy ball's mass (1) and the rocky
+	# ball's (6). Retune it outside that band and these should fail -- that is the point of them.
+	var world: StepWorld = _lever_world()
+	var lever: Lever = world.levers[0]
+	_settle_lever(lever, 3.0)
+	var rest: float = lever.angle
 	_check(
-		"the rocky ball tips a plank harder than the squishy ball",
-		rocky_steps < squishy_steps,
-		"%d steps to the stop under rocky, %d under squishy" % [rocky_steps, squishy_steps],
+		"a counterweight parks the plank against a stop",
+		is_equal_approx(absf(rest), lever.max_tilt),
+		"rests at %.1f deg, limit %.1f" % [rad_to_deg(rest), rad_to_deg(lever.max_tilt)],
 	)
 
-	# A counterweight on the far end holds that side down until something outweighs it.
-	var saved: Dictionary = _apply({"lever_counterweight": 20.0})
-	var held: StepWorld = _lever_world()
-	_run_from(held, squishy, Vector2(560.0, 300.0), Vector2.ZERO, 1.5)
-	var tipped_against: float = held.levers[0].angle
-	_restore(saved)
+	var after_squishy: float = _drop_on_raised_end(world, squishy, rest)
+	var after_rocky: float = _drop_on_raised_end(world, rocky, rest)
 	_check(
-		"a counterweight holds its side down against a light ball",
-		tipped_against < 0.0,
-		"%.1f deg: the weighted end stayed down" % rad_to_deg(tipped_against),
+		"the counterweight holds against squishy and yields to rocky",
+		is_equal_approx(after_squishy, rest) and absf(after_rocky - rest) > lever.max_tilt,
+		"squishy leaves it at %.1f deg, rocky throws it to %.1f (from %.1f)" % [
+			rad_to_deg(after_squishy), rad_to_deg(after_rocky), rad_to_deg(rest)],
 	)
 
 	# The stop is a stop, whatever is piled on it.
@@ -458,11 +457,31 @@ func _test_levers() -> void:
 	_test_prediction_through_actors("a lever", _lever_world(), rocky, Vector2(560.0, 300.0), Vector2(0.0, 200.0))
 
 
-## A room with one plank pivoted in the middle of it.
+## A room with one plank pivoted in the middle of it, at the block's own default tilt limit.
 func _lever_world() -> StepWorld:
 	var world: StepWorld = _plain_room()
-	world.levers.append(Lever.new(1, Vector2(500.0, 700.0), 90.0, 6.0, 35.0))
+	world.levers.append(Lever.new(1, Vector2(500.0, 700.0), 90.0, 6.0, 25.0))
 	return world
+
+
+## Let the plank find its resting position under the counterweight alone.
+func _settle_lever(lever: Lever, seconds: float) -> void:
+	var dt: float = TuningData.get_active().fixed_delta()
+	for _i: int in int(seconds / dt):
+		lever.step(dt)
+
+
+## Drop a ball straight onto whichever end the counterweight has left raised, from `rest`.
+## Returns the angle the plank ends at.
+func _drop_on_raised_end(world: StepWorld, form: BallForm, rest: float) -> float:
+	var lever: Lever = world.levers[0]
+	lever.angle = rest
+	lever.angular_velocity = 0.0
+	var a: Vector2 = lever.end_a()
+	var b: Vector2 = lever.end_b()
+	var raised: Vector2 = a if a.y < b.y else b
+	_run_from(world, form, Vector2(raised.x, raised.y - 60.0), Vector2.ZERO, 3.0)
+	return lever.angle
 
 
 ## How many steps it takes the ball to drive the plank to its stop. Returns the cap if it never

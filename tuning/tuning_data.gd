@@ -362,7 +362,7 @@ extends Resource
 ## it creep.
 @export_range(0.0, 2000.0, 1.0) var lever_pivot_friction: float = 40.0
 ## A weight hung on the A end, holding that side down until something outweighs it.
-@export_range(-40.0, 40.0, 0.1) var lever_counterweight: float = 0.0
+@export_range(-40.0, 40.0, 0.1) var lever_counterweight: float = 1.5
 ## How hard a landing kicks the plank, on top of the ball's standing weight.
 @export_range(0.0, 10.0, 0.05) var lever_impact_strength: float = 1.0
 ## Scales every torque at once. The knob to reach for if levers feel uniformly too stiff or too

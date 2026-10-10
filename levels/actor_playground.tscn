@@ -71,7 +71,7 @@ color = Color(0, 0, 0, 0)
 polygon = PackedVector2Array(-20, -90, 20, -90, 20, 90, -20, 90)
 
 [node name="LeverPerch" parent="Terrain" instance=ExtResource("8_terrain")]
-position = Vector2(1850, 784)
+position = Vector2(2100, 784)
 color = Color(0, 0, 0, 0)
 polygon = PackedVector2Array(-70, -14, 70, -14, 70, 14, -70, 14)
 
@@ -96,7 +96,7 @@ polygon = PackedVector2Array(-72, -10, 72, -10, 72, 10, -72, 10)
 position = Vector2(2000, 975)
 half_length = 110.0
 thickness = 7.0
-max_tilt_degrees = 35.0
+max_tilt_degrees = 25.0
 
 [node name="Flags" type="Node2D" parent="."]
 
@@ -148,10 +148,10 @@ offset_left = 1700.0
 offset_top = 640.0
 offset_right = 2240.0
 offset_bottom = 700.0
-text = "4. LEVER
-rocky weighs 6 to squishy's 1, but at the shipped torqueScale
-BOTH drive the plank to its stop -- only the SPEED differs.
-that saturation is the open question in docs/PORTING.md.
+text = "4. LEVER -- a counterweight switch
+the weight holds the left end DOWN until something beats it.
+squishy (1) is too light; rocky (6) throws it.
+drop onto the raised RIGHT end from the perch.
 rocky cannot climb here: go up as squishy, switch in mid-air."
 
 [node name="ShatterEffect" type="Node2D" parent="."]

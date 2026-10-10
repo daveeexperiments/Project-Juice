@@ -27,7 +27,7 @@ const FAINT: Color = Color(0.55, 0.55, 0.55, 0.5)
 
 ## How far it may tilt either way (degrees). A seesaw, not a windmill: with no stop, a plank with
 ## a ball on one end would simply spin.
-@export_range(0.0, 89.0, 1.0) var max_tilt_degrees: float = 35.0:
+@export_range(0.0, 89.0, 1.0) var max_tilt_degrees: float = 25.0:
 	set(value):
 		max_tilt_degrees = value
 		queue_redraw()

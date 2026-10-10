@@ -188,13 +188,15 @@ self-consistent and passes its tests, but the *number or the reading* was inferr
 read. If one of them feels wrong in play, this is where to look first — and the answer is now
 whatever feels right, not whatever Phaser did.
 
-1. **`lever.torqueScale` — the one that is actually broken.** At `torqueScale` 1 the plank slams
-   into its stop under *either* ball in well under a second, so the mass difference (6 against 1)
-   is invisible in play and the lever is not yet a puzzle element at all. The headless test can
-   only see it as time-to-stop, 107 steps against 266. Lowering `torqueScale` until the squishy
-   ball moves the plank without reaching the stop is the fix; `lever.counterweight` is the other
-   knob, and makes the lever a genuine switch. `pivotFriction` is treated here as a torque rather
-   than an angular deceleration.
+1. ~~**`lever.torqueScale`**~~ — **resolved: the lever is a counterweight switch.**
+   `lever.counterweight` is 1.5, deliberately between the squishy ball's mass of 1 and the rocky
+   ball's 6, so the weight parks the plank against a stop and only the heavy ball can throw it.
+   Fixing it turned up a real physics error rather than just a bad number: the weights' torques
+   were missing their `cos(angle)` factor, so a counterweight pulled as hard at full tilt as it
+   did level. Uncorrected, the switch worked at exactly one counterweight value and no other, even
+   though rocky outweighed it four to one. Corrected, it has a 4:1 margin for rocky and 1.5:1
+   against squishy, and works wherever on the plank the ball lands. `pivotFriction` is still
+   treated as a torque rather than an angular deceleration.
 2. **`fans.sustain` (0.55).** Used here as how much push survives at the very edge of the mouth, so
    a ball slides out of a stream rather than falling off a shelf of air. It could instead be a
    decay on the push once the ball is leaving.
