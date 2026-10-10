@@ -272,6 +272,9 @@ extends Resource
 @export_range(0.0, 1.5, 0.05) var spikes_respawn_delay: float = 0.35
 ## How close the ball must come to raise a flag (px beyond its own radius).
 @export_range(0.0, 120.0, 2.0) var flags_touch_radius: float = 26.0
+## On: a rope the ball has come to REST in is a checkpoint in its own right. Off in the shipped
+## tuning, which is why cables are a route rather than a safety net.
+@export var flags_cables_are_checkpoints: bool = false
 
 # ---------------------------------------------------------------- fans
 
@@ -691,6 +694,7 @@ const FIELD_BY_PATH: Dictionary = {
 	"spikes.graceSeconds": "spikes_grace_seconds",
 	"spikes.respawnDelay": "spikes_respawn_delay",
 	"flags.touchRadius": "flags_touch_radius",
+	"flags.cablesAreCheckpoints": "flags_cables_are_checkpoints",
 	"camera.climbOffset": "camera_climb_offset",
 	"camera.followLerp": "camera_follow_lerp",
 	"camera.fallLookAhead": "camera_look_ahead",

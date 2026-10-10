@@ -229,6 +229,18 @@ func _check_flags() -> void:
 		if Vector2(ball.state.x, ball.state.y).distance_to(flag.global_position) <= reach:
 			flag.activated = true
 			GameState.respawn_point = flag.respawn_point()
+	_check_cable_checkpoint()
+
+
+## A rope the ball has come to rest in can be a checkpoint in its own right, when
+## `flags.cablesAreCheckpoints` says so (off in the shipped tuning). It has to be RESTING rather
+## than merely touching: a rope you bounced off on the way past is not somewhere to come back to.
+func _check_cable_checkpoint() -> void:
+	if not TuningData.get_active().flags_cables_are_checkpoints:
+		return
+	if ball.state.ground_material != SurfaceKind.CABLE:
+		return
+	GameState.respawn_point = Vector2(ball.state.x, ball.state.y + ball.radius)
 
 
 ## Back to the last raised flag (or the spawn), with everything reset. `R` does this too.

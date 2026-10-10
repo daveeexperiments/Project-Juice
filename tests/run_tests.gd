@@ -18,6 +18,16 @@ extends SceneTree
 ##  4. SPIKES. Triggered from every side and at maximum speed, including a sweep that would skip
 ##     a thin strip with a point-in-time check.
 ##  5. RESPAWN. Always the most recently raised flag.
+##  6. THE GHOST DOES NOT TOUCH THE LEVEL. Cables and levers are the first actors the ball can
+##     move, so a prediction could move them by accident. If drawing a preview swung the real
+##     ropes or tipped the real planks, merely aiming would rearrange the level and change where
+##     the shot went. Checked knot by knot and angle by angle, and together with (1) for every
+##     new actor: the ghost must leave the world alone AND still match the ball exactly.
+##  7. THE PER-BALL SPLIT. Each surface is a route for one ball and an obstacle for the other --
+##     glass and cables for the squishy ball, trampolines for the rocky one, fans for the squishy
+##     one. These are the checks that would catch the two forms being accidentally made alike.
+##  8. THE LIMITER. All four modes gate and scale launches as specified, and heat in particular
+##     never refuses a shot -- it only weakens it.
 
 const TOLERANCE: float = 0.0001
 
@@ -26,7 +36,7 @@ var _checks: int = 0
 
 
 func _initialize() -> void:
-	print("Project Juice -- phase 2 tests\n")
+	print("Project Juice -- phase 3 tests\n")
 	var world: StepWorld = _build_test_world()
 
 	print(" prediction")

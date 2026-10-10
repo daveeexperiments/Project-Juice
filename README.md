@@ -19,11 +19,30 @@ Open the project in **Godot 4.7** and press **F5** — `levels/test_room.tscn` i
 | **Shift** | Snap the aim angle |
 | **Esc**, **RMB** while dragging | Cancel the shot |
 | **R** | Back to the last raised flag |
-| **F1** | Debug overlay: collision edges, hitboxes, glass types, respawn point |
+| **F1** | Debug overlay: collision edges, hitboxes, glass types, respawn point, limiter state |
 
-Launches are unlimited, but only from a surface facing up — no wall jumps, no stacking shots in
-mid-air. Aiming slows the world rather than freezing it, so anything pushing the ball keeps
-pushing while a shot is lined up.
+By default launches are unlimited but only from a surface facing up — no wall jumps, no stacking
+shots in mid-air. That is one of four **limiter modes**, set by `limiter_mode` in the tuning:
+
+| Mode | What stops you launching for ever |
+|---|---|
+| **Grounded** (default) | A shot only goes from a surface you could stand on, plus a coyote window |
+| **Charges** | A budget of shots, refilled by touching a surface whose facing *and* material qualify — glass gives nothing back to the squishy ball and a full refill to the rocky one |
+| **Heat** | Every shot heats the ball. Rock sheds heat, air barely does. A hot ball still fires, just weakly, and its ghost line is cut short |
+| **Elasticity** | The band wears with use — more for a full pull, more again in mid-air — and recovers with time |
+
+Aiming slows the world rather than freezing it, so anything pushing the ball keeps pushing while a
+shot is lined up.
+
+Each surface is a route for one ball and an obstacle for the other, which is the whole game:
+
+| | Squishy | Rocky |
+|---|---|---|
+| Glass | bounces off it, hard | smashes through it |
+| Trampoline | nearly dead underfoot | thrown a long way |
+| Cable | thrown by it | lands in it dead |
+| Fan | flown by the stream | only slowed by it |
+| Lever | barely disturbs it | tips it |
 
 ## Tests
 
@@ -47,11 +66,11 @@ Godot registers it before the tests can see it.
 | `ball/` | The ball node and its two forms |
 | `slingshot/` | Aiming, the cradle, the band — and `aim_math.gd`, kept pure and testable |
 | `prediction/` | The dashed ghost line |
-| `blocks/` | Building blocks to drag into a level: Terrain, Glass, Spikes, Flag, Spawn |
+| `blocks/` | Building blocks to drag into a level: Terrain, Glass, Trampoline, Spikes, Cable, Fan, Lever, Flag, Spawn |
 | `tuning/` | Every gameplay number, as one Resource |
 | `levels/`, `camera/`, `debug/`, `tests/`, `docs/` | |
 
-## Two rules worth knowing before changing anything
+## Three rules worth knowing before changing anything
 
 **One step function.** `BallSim.step_ball` is the only code that moves a ball. The real ball and
 the prediction both call it, which is the only reason the ghost line can be exact. Anything that
@@ -61,8 +80,21 @@ moves the ball goes in there, never in the ball node or the preview alone.
 systems read `TuningData.get_active()` live, so editing a value in the Inspector — including the
 *remote* inspector while the game is running — changes the feel immediately.
 
+**A prediction must not touch the world.** Cables and levers move, so `StepWorld.ghost()` hands
+the preview *copies* of them. Anything new that the ball can change has to be copied there too —
+otherwise drawing a ghost line would swing the real ropes, and merely aiming at a shot would
+change where it went. There are tests for this; add one alongside them.
+
 ## Building blocks
 
 Each mechanic is a scene you drag into a level. They are `@tool` scripts, so they draw correctly
 in the editor, and they inherit from `Polygon2D` / `Marker2D` so you can click them in the
 viewport and drag their points. Collision is rebuilt from the polygon when the level loads.
+
+A **Trampoline** is a Terrain block with its material set to trampoline, the same way Glass is —
+a pad is a shape made of springy stuff rather than a separate kind of thing. A **Fan** is aimed by
+rotating the node, and its polygon is the mouth, so the mouth's width is the stream's width. A
+**Cable**'s two polygon points are its anchors and the rope hangs between them; because that
+leaves a flat bounding box, grab a dead horizontal or vertical cable by one of its handles or from
+the scene tree. A **Lever** is a Marker2D: it *is* a pivot, with the plank's length and tilt limit
+as numbers rather than an outline.

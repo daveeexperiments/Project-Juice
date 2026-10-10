@@ -8,7 +8,6 @@ audio.throttleScale
 cables.clearAbove
 cables.clearBelow
 camera.mode
-flags.cablesAreCheckpoints
 fx.debrisCount
 fx.shakeDurationMs
 fx.squashRecoverMs

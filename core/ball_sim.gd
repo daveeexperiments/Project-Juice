@@ -9,13 +9,18 @@ extends RefCounted
 ## new force, bounce rule or surface goes in here, never in the ball node or the preview alone.
 ##
 ## The order of operations matters and is kept identical to the Phaser version:
-##   gravity -> air drag -> rolling friction -> speed cap -> substepped movement with spike sweep
-##   and contact resolution -> pending lift -> pass-through drag -> support probe -> roll-off ->
-##   settle re-arm -> spin.
+##   moving actors -> fans -> gravity -> air drag -> rolling friction -> speed cap -> substepped
+##   movement with spike sweep and contact resolution -> pending lift -> pass-through drag ->
+##   support probe -> roll-off -> cable centring -> settle re-arm -> spin.
 ##
-## Phase 2 scope: polygon terrain, glass (all five rocky modes, both bounce modes, the rising
-## assist) and spikes. Fans, trampolines, cables, levers and pickups are later phases; where the
-## Phaser step calls into them, the call site is marked.
+## Scope after phase 3: polygon terrain, glass (all five rocky modes, both bounce modes, the
+## rising assist), spikes, trampolines, fans, cables and levers. Pickups and the juice layer are
+## still to come.
+##
+## THE OTHER RULE, which phase 3 made load-bearing: the moving actors (cables and levers) are
+## advanced ONCE per step, at the top, never inside the substep loop. Stepped per substep they
+## would advance further for a fast ball than a slow one, and the ghost would drift from the ball
+## even though both run this same function.
 
 ## How many push-out passes per substep. Enough for a ball wedged into a corner.
 const RESOLVE_PASSES: int = 4
