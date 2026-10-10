@@ -308,6 +308,41 @@ extends Resource
 @export var trampoline_refills_squishy: bool = true
 @export var trampoline_refills_rocky: bool = true
 
+# ---------------------------------------------------------------- cables
+
+@export_group("Cables")
+## How many links the rope is built from. More is smoother and costs more.
+@export_range(2.0, 48.0, 1.0) var cables_segments: int = 14
+## How hard each link pulls back to its rest length, per relaxation pass. 1 is an inelastic rope.
+@export_range(0.0, 1.0, 0.01) var cables_stiffness: float = 0.8
+## Speed the rope loses per step, which is what stops it swinging for ever.
+@export_range(0.0, 1.0, 0.01) var cables_damping: float = 0.04
+## How far the middle may droop below the line between the anchors (px). Stops a long cable
+## sinking to the floor and ceasing to be a route.
+@export_range(0.0, 400.0, 1.0) var cables_max_sag: float = 56.0
+## How much the rope gives rather than throwing. 0 is a rail; 1 is all give.
+@export_range(0.0, 1.0, 0.01) var cables_softness: float = 0.55
+## The rope's collision radius (px).
+@export_range(1.0, 40.0, 0.5) var cables_thickness: float = 5.0
+## How far the rope is shoved aside by the hardest hit there is (px).
+@export_range(0.0, 120.0, 1.0) var cables_recoil: float = 14.0
+## Sideways slowdown while rolling along a rope (px/s^2).
+@export_range(0.0, 2000.0, 10.0) var cables_rolling_friction: float = 70.0
+## How strongly a resting ball is drawn towards the middle of the rope (px/s^2), so it rolls to
+## the low point instead of balancing near an anchor.
+@export_range(0.0, 2000.0, 10.0) var cables_centring_bias: float = 70.0
+## On: a rope always throws the ball to the same height, whatever the drop. Off: an ordinary
+## physical bounce at the ball's own `cableBounce`. The same reflect-or-boost choice glass has.
+@export var cables_sustain_bounce: bool = false
+## How much of the impact speed is added on top of the throw.
+@export_range(0.0, 3.0, 0.05) var cables_impact_bonus: float = 0.55
+## Extra damping applied the moment the rope is hit, so it stops ringing rather than wobbling for
+## the rest of the level.
+@export_range(0.0, 1.0, 0.01) var cables_extra_decay: float = 0.55
+## Whether a rope puts a spent launch budget, or a worn band, back.
+@export var cables_refills_charges: bool = true
+@export var cables_restores_elasticity: bool = false
+
 # ---------------------------------------------------------------- per-ball actor response
 
 @export_group("Ball vs actors")
@@ -323,6 +358,13 @@ extends Resource
 ## than contradicting it: it neither launches nor would get anything if it did.
 @export_range(0.0, 2.0, 0.01) var squishy_trampoline_bounce: float = 0.0
 @export_range(0.0, 2.0, 0.01) var rocky_trampoline_bounce: float = 1.0
+## How much a rope throws each ball. A cable is the squishy ball's route: 0.31 against the rocky
+## ball's 0.04, which lands on a rope dead.
+@export_range(0.0, 2.0, 0.01) var squishy_cable_bounce: float = 0.31
+@export_range(0.0, 2.0, 0.01) var rocky_cable_bounce: float = 0.04
+## The height a rope throws each ball to when `cables.sustainBounce` is on, whatever the drop (px).
+@export_range(0.0, 600.0, 1.0) var squishy_sustained_cable_height: float = 150.0
+@export_range(0.0, 600.0, 1.0) var rocky_sustained_cable_height: float = 62.0
 
 # ---------------------------------------------------------------- helpers
 
@@ -571,6 +613,28 @@ const FIELD_BY_PATH: Dictionary = {
 	"rocky.glassBreakSpeedKeep": "rocky_glass_break_speed_keep",
 	"squishy.risingAssist": "squishy_rising_assist",
 	"rocky.risingAssist": "rocky_rising_assist",
+
+	# cables.clearAbove and cables.clearBelow are deliberately absent: they read as
+	# level-generation clearance rather than collision, and bending them into the one-way floor
+	# rule would have them decide nothing. See the note in core/cable.gd.
+	"cables.segments": "cables_segments",
+	"cables.stiffness": "cables_stiffness",
+	"cables.damping": "cables_damping",
+	"cables.maxSag": "cables_max_sag",
+	"cables.softness": "cables_softness",
+	"cables.thickness": "cables_thickness",
+	"cables.recoil": "cables_recoil",
+	"cables.rollingFriction": "cables_rolling_friction",
+	"cables.centringBias": "cables_centring_bias",
+	"cables.sustainBounce": "cables_sustain_bounce",
+	"cables.impactBonus": "cables_impact_bonus",
+	"cables.extraDecay": "cables_extra_decay",
+	"cables.refillsCharges": "cables_refills_charges",
+	"cables.restoresElasticity": "cables_restores_elasticity",
+	"squishy.cableBounce": "squishy_cable_bounce",
+	"rocky.cableBounce": "rocky_cable_bounce",
+	"squishy.sustainedCableHeight": "squishy_sustained_cable_height",
+	"rocky.sustainedCableHeight": "rocky_sustained_cable_height",
 
 	"trampoline.launchSpeed": "trampoline_launch_speed",
 	"trampoline.impactBonus": "trampoline_impact_bonus",

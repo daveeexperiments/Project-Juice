@@ -56,6 +56,9 @@ func _initialize() -> void:
 	print("\n settling")
 	_test_settle_comes_to_rest(world)
 
+	print("\n cables")
+	_test_cables()
+
 	print("\n trampolines")
 	_test_trampolines()
 
@@ -373,6 +376,198 @@ func _test_settle_comes_to_rest(world: StepWorld) -> void:
 # ---------------------------------------------------------------- helpers
 
 ## The real ball's side of a step: break a pane for good, and note spikes.
+# ---------------------------------------------------------------- cables
+
+func _test_cables() -> void:
+	var t: TuningData = TuningData.get_active()
+	var squishy: BallForm = BallForm.make(BallForm.SQUISHY)
+	var rocky: BallForm = BallForm.make(BallForm.ROCKY)
+
+	# The rope settles into its droop, and the cap holds it there.
+	var world: StepWorld = _cable_world()
+	var rope: Cable = world.cables[0]
+	var dt: float = t.fixed_delta()
+	for _i: int in 600:
+		rope.step(dt)
+	var middle: Vector2 = rope.points[rope.points.size() / 2]
+	var flat: float = rope.anchor_a.lerp(rope.anchor_b, 0.5).y
+	_check(
+		"a rope sags, and never further than maxSag",
+		middle.y > flat and middle.y - flat <= t.cables_max_sag + TOLERANCE,
+		"%.1f px of droop, cap %.0f" % [middle.y - flat, t.cables_max_sag],
+	)
+	_check(
+		"a rope stays pinned at both ends",
+		rope.points[0].is_equal_approx(rope.anchor_a) and rope.points[rope.points.size() - 1].is_equal_approx(rope.anchor_b),
+		"anchors held after 600 steps",
+	)
+
+	# The per-ball split, as with glass and pads: a rope throws the squishy ball and the rocky ball
+	# lands in it dead (0.31 against 0.04, under a 60 px/s threshold).
+	var squishy_hit: Dictionary = _first_contact_with(_cable_world(), squishy, Vector2(500.0, 300.0), Vector2.ZERO, SurfaceKind.CABLE)
+	var rocky_hit: Dictionary = _first_contact_with(_cable_world(), rocky, Vector2(500.0, 300.0), Vector2.ZERO, SurfaceKind.CABLE)
+	_check(
+		"a rope throws the squishy ball and the rocky ball lands in it dead",
+		(squishy_hit["out"] as float) > 100.0 and is_zero_approx(rocky_hit["out"] as float),
+		"squishy out %.0f px/s, rocky out %.0f" % [squishy_hit["out"], rocky_hit["out"]],
+	)
+
+	# A ONE-WAY FLOOR: caught from above, passed straight through from below. Each world is
+	# measured against its OWN rope -- a rope that has been landed on sits lower than one that has
+	# only been flown through, so comparing across the two would be comparing different ropes.
+	var dropped: StepWorld = _cable_world()
+	var landed: BallState = _run_from(dropped, squishy, Vector2(500.0, 300.0), Vector2.ZERO, 2.0)
+	var caught: bool = landed.y < _rope_middle_y(dropped) and landed.ground_material == SurfaceKind.CABLE
+
+	var risen: StepWorld = _cable_world()
+	var rising: BallState = _run_from(risen, squishy, Vector2(500.0, 720.0), Vector2(0.0, -900.0), 0.25)
+	var passed: bool = rising.y < _rope_middle_y(risen)
+
+	_check(
+		"a cable is a one-way floor: caught from above, passed through from below",
+		caught and passed,
+		"came to rest on it at y %.0f (rope %.0f), rose through it to y %.0f (rope %.0f)" % [
+			landed.y, _rope_middle_y(dropped), rising.y, _rope_middle_y(risen),
+		],
+	)
+	# Within half a pixel rather than to float equality: a resting contact is held out by the
+	# push-out pass every step, which settles just shy of the exact figure.
+	var clearance: float = _rope_middle_y(dropped) - landed.y
+	var wanted_clearance: float = squishy.radius + dropped.cables[0].thickness()
+	_check(
+		"a ball resting in a rope sits on top of it, by its radius and the rope's thickness",
+		absf(clearance - wanted_clearance) < 0.5,
+		"%.3f px of clearance, expected %.3f" % [clearance, wanted_clearance],
+	)
+
+	# Sustained mode throws to the ball's own height whatever the drop. Measured with the impact
+	# bonus switched off, since that is the part that is deliberately allowed to vary.
+	var saved: Dictionary = _apply({"cables_sustain_bounce": true, "cables_impact_bonus": 0.0})
+	var low: Dictionary = _first_contact_with(_cable_world(), squishy, Vector2(500.0, 400.0), Vector2.ZERO, SurfaceKind.CABLE)
+	var high: Dictionary = _first_contact_with(_cable_world(), squishy, Vector2(500.0, 100.0), Vector2.ZERO, SurfaceKind.CABLE)
+	var wanted: float = sqrt(2.0 * t.world_gravity * squishy.gravity_multiplier * squishy.sustained_cable_height)
+	_check(
+		"a sustained rope throws to the same height whatever the drop",
+		is_equal_approx(low["out"] as float, wanted) and is_equal_approx(high["out"] as float, wanted),
+		"%.1f and %.1f px/s out, both wanting %.1f" % [low["out"], high["out"], wanted],
+	)
+	_restore(saved)
+
+	# A rope puts a spent budget back, for both balls.
+	saved = _apply({
+		"limiter_mode": LaunchLimiter.MODE_CHARGES,
+		"charges_max": 3,
+		"charges_settle_time": 0.0,
+		"cables_refills_charges": true,
+	})
+	var limiter: LaunchLimiter = LaunchLimiter.new()
+	_drain(limiter)
+	limiter.note_contact(_contact_facing(-1.0, SurfaceKind.CABLE), rocky)
+	var refilled: int = limiter.charges
+	_restore(saved)
+	_check("a rope refills the budget", refilled == 3, "%d charges" % refilled)
+
+	# THE ONE THAT MATTERS MOST. A rope is the first thing in this port the ball can move, so it is
+	# the first thing a prediction could move by accident. If drawing a preview swung the real
+	# ropes, merely aiming would disturb the level and change where the shot went.
+	var live: StepWorld = _cable_world()
+	for _i: int in 120:
+		live.cables[0].step(dt)
+	var before: PackedVector2Array = live.cables[0].points.duplicate()
+	var preview: TrajectoryPreview = TrajectoryPreview.new()
+	preview._ready()
+	preview.simulate(squishy, Vector2(500.0, 300.0), Vector2(60.0, 200.0), live)
+	preview.free()
+	var untouched: bool = true
+	for i: int in before.size():
+		if not before[i].is_equal_approx(live.cables[0].points[i]):
+			untouched = false
+			break
+	_check(
+		"a prediction leaves the real rope exactly where it was",
+		untouched,
+		"all %d knots unmoved by a preview that lands on the rope" % before.size(),
+	)
+
+	_test_prediction_through_actors("a cable", _cable_world(), squishy, Vector2(500.0, 300.0), Vector2(60.0, 200.0))
+
+
+## A room with one slack rope strung across the middle. Built fresh each time, because a rope
+## remembers how it has been swung and a test that reused one would depend on the order.
+func _cable_world() -> StepWorld:
+	var world: StepWorld = _plain_room()
+	world.cables.append(Cable.new(1, Vector2(200.0, 600.0), Vector2(800.0, 600.0), 0.25, -1.0))
+	return world
+
+
+## The first contact with `material`: {out, impact}, or out -1 if it never happened.
+func _first_contact_with(
+	world: StepWorld,
+	form: BallForm,
+	from: Vector2,
+	velocity: Vector2,
+	material: int,
+) -> Dictionary:
+	var state: BallState = BallState.new()
+	state.x = from.x
+	state.y = from.y
+	state.vx = velocity.x
+	state.vy = velocity.y
+	state.ground_material = SurfaceKind.NONE
+	var watch: MaterialWatch = MaterialWatch.new()
+	watch.want = material
+	var dt: float = TuningData.get_active().fixed_delta()
+	for _i: int in 900:
+		if not BallSim.step_ball(state, form, world, dt, watch):
+			break
+		if watch.out_speed >= 0.0:
+			break
+	return {"out": watch.out_speed, "impact": watch.impact_speed}
+
+
+## Records the first contact with one material and counts them all.
+class MaterialWatch extends StepPolicy:
+	var want: int = SurfaceKind.CABLE
+	var out_speed: float = -1.0
+	var impact_speed: float = 0.0
+	var hits: int = 0
+
+	func on_contact(contact: Contact) -> bool:
+		if contact.material == want:
+			hits += 1
+			if out_speed < 0.0:
+				out_speed = contact.out_speed
+				impact_speed = contact.impact_speed
+		return true
+
+
+## Run the ball for `seconds` and hand back everything about where it ended up.
+func _run_from(
+	world: StepWorld,
+	form: BallForm,
+	from: Vector2,
+	velocity: Vector2,
+	seconds: float,
+) -> BallState:
+	var state: BallState = BallState.new()
+	state.x = from.x
+	state.y = from.y
+	state.vx = velocity.x
+	state.vy = velocity.y
+	state.ground_material = SurfaceKind.NONE
+	var dt: float = TuningData.get_active().fixed_delta()
+	for _i: int in int(seconds / dt):
+		if not BallSim.step_ball(state, form, world, dt, null):
+			break
+	return state
+
+
+## How low the middle of the first rope is hanging, in this world.
+func _rope_middle_y(world: StepWorld) -> float:
+	var rope: Cable = world.cables[0]
+	return rope.points[rope.points.size() / 2].y
+
+
 # ---------------------------------------------------------------- trampolines
 
 func _test_trampolines() -> void:
@@ -592,6 +787,10 @@ func _test_fans() -> void:
 
 ## The regression that matters for every actor: the ghost and the ball must still agree step for
 ## step once something other than terrain is pushing them about.
+##
+## Ropes are snapshotted around both runs. The preview should not move them at all -- that is
+## checked separately -- but the real ball certainly does, so the state is put back afterwards and
+## a later test is not handed a rope this one has already swung.
 func _test_prediction_through_actors(
 	label: String,
 	world: StepWorld,
@@ -599,10 +798,12 @@ func _test_prediction_through_actors(
 	from: Vector2,
 	velocity: Vector2,
 ) -> void:
+	var ropes: Array[Dictionary] = world.snapshot_cables()
 	var preview: TrajectoryPreview = TrajectoryPreview.new()
 	preview._ready()
 	var predicted: PackedVector2Array = preview.simulate(form, from, velocity, world)
 	preview.free()
+	world.restore_cables(ropes)
 
 	var state: BallState = BallState.new()
 	state.x = from.x
@@ -620,6 +821,7 @@ func _test_prediction_through_actors(
 		if i < last:
 			worst = maxf(worst, Vector2(state.x, state.y).distance_to(predicted[i]))
 
+	world.restore_cables(ropes)
 	_check(
 		"prediction stays exact through %s" % label,
 		worst <= TOLERANCE,

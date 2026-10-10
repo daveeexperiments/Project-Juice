@@ -149,3 +149,16 @@ var refilled_by_trampoline: bool:
 	get:
 		var t: TuningData = TuningData.get_active()
 		return t.trampoline_refills_rocky if id == ROCKY else t.trampoline_refills_squishy
+
+## How much a rope throws this ball. A cable is the squishy ball's route the way a pad is the
+## rocky ball's.
+var cable_bounce: float:
+	get:
+		var t: TuningData = TuningData.get_active()
+		return t.rocky_cable_bounce if id == ROCKY else t.squishy_cable_bounce
+
+## The height a rope throws this ball to when `cables.sustainBounce` is on, whatever the drop.
+var sustained_cable_height: float:
+	get:
+		var t: TuningData = TuningData.get_active()
+		return t.rocky_sustained_cable_height if id == ROCKY else t.squishy_sustained_cable_height

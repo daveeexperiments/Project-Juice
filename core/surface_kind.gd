@@ -15,6 +15,9 @@ const NONE: int = -1
 const WALL: int = 0
 const GLASS: int = 1
 const TRAMPOLINE: int = 2
+## A slack rope. Not a shape: it has its own list on StepWorld because it moves, but it reports
+## itself as a material on contact so the limiter and the debug overlay can tell what was hit.
+const CABLE: int = 3
 
 
 ## The name Tiled and the Phaser levels use, for metadata and debug text.
@@ -26,6 +29,8 @@ static func to_name(kind: int) -> String:
 			return "glass"
 		TRAMPOLINE:
 			return "trampoline"
+		CABLE:
+			return "cable"
 	return "none"
 
 

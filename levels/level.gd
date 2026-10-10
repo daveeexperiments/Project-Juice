@@ -79,6 +79,20 @@ func _build_world() -> void:
 		world.shapes.append(slab)
 		next_id += 1
 
+	for node: Node in get_tree().get_nodes_in_group(&"cables"):
+		var block: CableBlock = node as CableBlock
+		if block == null:
+			continue
+		world.cables.append(block.build_cable(next_id))
+		next_id += 1
+
+	for node: Node in get_tree().get_nodes_in_group(&"fans"):
+		var block: FanBlock = node as FanBlock
+		if block == null:
+			continue
+		world.fans.append(block.build_fan(next_id))
+		next_id += 1
+
 
 func _spawn_point() -> Vector2:
 	for node: Node in get_tree().get_nodes_in_group(&"spawn"):

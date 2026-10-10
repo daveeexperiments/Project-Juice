@@ -97,6 +97,13 @@ func tick(dt: float, ground_material: int, form: BallForm) -> void:
 ## A contact the step just resolved. Charges mode refills from here, because a wall or ceiling
 ## bounce is a contact and never a support: waiting for `ground_material` would miss both.
 func note_contact(contact: Contact, form: BallForm) -> void:
+	# A rope can mend a worn band as well as refill a budget, so this is not only a Charges
+	# concern. Off by default (`cables.restoresElasticity` is false) but wired, because the two
+	# keys exist separately in the Phaser tuning and clearly mean different things.
+	if mode() == MODE_ELASTICITY:
+		if contact.material == SurfaceKind.CABLE and TuningData.get_active().cables_restores_elasticity:
+			elasticity = 1.0
+		return
 	if mode() != MODE_CHARGES:
 		return
 	if not _contact_refills(contact, form):
@@ -192,6 +199,10 @@ static func face_of(ny: float) -> int:
 static func _contact_refills(contact: Contact, form: BallForm) -> bool:
 	if contact.material == SurfaceKind.TRAMPOLINE:
 		return form.refilled_by_trampoline
+	# A rope answers for itself too, and for both balls alike: `cables.refillsCharges` is not
+	# split per ball the way the trampoline's is.
+	if contact.material == SurfaceKind.CABLE:
+		return TuningData.get_active().cables_refills_charges
 	return _surface_refills(face_of(contact.ny), contact.material, form)
 
 
