@@ -109,7 +109,7 @@ art_scale = ball diameter in world units / 250 source pixels
 
 250 is the resting worm's diameter on the character sheet, measured — a fact about the art. The
 ball on screen *is* the worm, so once the ball's radius is fixed in the tuning, the scale for every
-other piece follows. At today's radius of 12 that is **0.096**, and the ball's radius works out to
+other piece follows. At a radius of 36 that is **0.288**, and the ball works out to
 125 source pixels, which is what terrain closing uses.
 
 The useful consequence: if the tuning is ever rescaled, re-run the importer and every piece

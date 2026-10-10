@@ -2,9 +2,9 @@
 
 [ext_resource type="Texture2D" path="res://art/atlas/props/prop_sheet_1_16.tres" id="1_8dv1v"]
 
-[node name="prop_sheet_1_16" type="Node2D" unique_id=1210535274]
-scale = Vector2(0.096, 0.096)
+[node name="prop_sheet_1_16" type="Node2D" unique_id=991603061]
+scale = Vector2(0.288, 0.288)
 
-[node name="Art" type="Sprite2D" parent="." unique_id=299350456]
+[node name="Art" type="Sprite2D" parent="." unique_id=430506610]
 texture = ExtResource("1_8dv1v")
 centered = false
