@@ -169,9 +169,13 @@ func _test_glass_modes(world: StepWorld) -> void:
 		"ground %s" % SurfaceKind.to_name(r["ground"] as int))
 
 	# Hard hits only: a gentle drop does not break it, a fast one does.
-	r = _drop_rocky(world, form, pane, GlassRules.MODE_HARD, 120.0)
+	#
+	# These two speeds are the only ones here that mean anything: they have to straddle
+	# `glass.hardBreakSpeed`, so they move with it when the world is scaled. The drops above pass
+	# any speed at all, because those modes never consult it.
+	r = _drop_rocky(world, form, pane, GlassRules.MODE_HARD, 360.0)
 	var gentle_held: bool = not (r["broke"] as bool)
-	r = _drop_rocky(world, form, pane, GlassRules.MODE_HARD, 1200.0)
+	r = _drop_rocky(world, form, pane, GlassRules.MODE_HARD, 3600.0)
 	_check("hard hits only: gentle holds, fast breaks",
 		gentle_held and (r["broke"] as bool), "break speed %.0f" % TuningData.get_active().glass_hard_break_speed)
 
@@ -460,7 +464,12 @@ func _test_levers() -> void:
 ## A room with one plank pivoted in the middle of it, at the block's own default tilt limit.
 func _lever_world() -> StepWorld:
 	var world: StepWorld = _plain_room()
-	world.levers.append(Lever.new(1, Vector2(500.0, 700.0), 90.0, 6.0, 25.0))
+	# The plank's LENGTH is in world units, so it scales with the tuning. It has to: torque goes as
+	# gravity x arm and inertia as mass x arm squared, so a plank left at its old length under
+	# tripled gravity gets three times the angular acceleration and slams its stop under either
+	# ball -- which is exactly how this check failed when the world was scaled. The tilt limit is
+	# in DEGREES and stays put.
+	world.levers.append(Lever.new(1, Vector2(500.0, 700.0), 270.0, 18.0, 25.0))
 	return world
 
 
@@ -480,7 +489,9 @@ func _drop_on_raised_end(world: StepWorld, form: BallForm, rest: float) -> float
 	var a: Vector2 = lever.end_a()
 	var b: Vector2 = lever.end_b()
 	var raised: Vector2 = a if a.y < b.y else b
-	_run_from(world, form, Vector2(raised.x, raised.y - 60.0), Vector2.ZERO, 3.0)
+	# Two ball-diameters above the end: the drop height sets the impact speed, which is half of
+	# what the counterweight is being weighed against.
+	_run_from(world, form, Vector2(raised.x, raised.y - 180.0), Vector2.ZERO, 3.0)
 	return lever.angle
 
 
@@ -848,11 +859,14 @@ func _test_fans() -> void:
 
 	# A fan makes up the shortfall and nothing more, so flying a fast shot through one is free.
 	var slow: Vector2 = fan.accel_for(start.x, start.y, 0.0, 0.0, squishy, world)
-	var already_fast: Vector2 = fan.accel_for(start.x, start.y, 0.0, -900.0, squishy, world)
+	# The probe speed has to sit ABOVE `fans.targetSpeed`, which is the whole point of the check, so
+	# it scales with the tuning rather than staying at an absolute figure.
+	var fast_enough: float = TuningData.get_active().fans_target_speed * 2.0
+	var already_fast: Vector2 = fan.accel_for(start.x, start.y, 0.0, -fast_enough, squishy, world)
 	_check(
 		"a fan pushes a slow ball and never brakes a fast one",
 		slow.length() > 0.0 and already_fast == Vector2.ZERO,
-		"%.0f px/s^2 at rest, %.0f at 900 px/s up" % [slow.length(), already_fast.length()],
+		"%.0f px/s^2 at rest, %.0f at %.0f px/s up" % [slow.length(), already_fast.length(), fast_enough],
 	)
 
 	# Outside the mouth and behind it there is no stream at all.

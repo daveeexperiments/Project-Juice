@@ -18,7 +18,7 @@ mechanic, not a feature. Every decision below is downstream of keeping the ghost
 | Art delivery | **The sheets as delivered. No requests go back to the designer.** PNG pages, transparent, 4096². | Every adaptation happens in Godot. No layer-name convention, no per-piece SVG, no re-exports — so classification and collision are driven by a **manifest we own**, not by metadata in the art. See "The manifest". |
 | Build order | **Greybox first, art second.** Each beat is playable in plain blocks before any sprite touches it. | Level building starts immediately with tools that already exist, instead of waiting on the pipeline. See "How we build the level". |
 | Ball names | **Squishy and Rocky.** | The code keeps the names it has, including the Phaser-inherited tuning keys (`rocky.cableBounce` and friends). The designer's notes say "Heavy"; that is just a synonym to read through, not something to correct. |
-| World scale | **k = 2.5.** Ball 60 px on screen, source art imported at 24%. | A uniform multiply of every length, speed and acceleration; times untouched. See "The world scale is k = 2.5". |
+| World scale | **k = 3. Applied.** Ball radius 36, source art imported at 28.8%. | A uniform multiply of every length, speed and acceleration; times untouched. Settled by measuring a placed level, not by argument. See "The world scale is k = 3". |
 | Many cables | **Sleeping, not approximation.** A rope that is not moving stops being simulated until something touches it. | The field becomes affordable *without* costing prediction exactness, because a sleeping rope genuinely is not moving. See "The cable field". |
 | The auto-bounce shaft | **Constructed, not tuned.** Per-pad `horizontal_keep = 0` and `impact_bonus = 0`. | The bounce is deterministic by construction rather than by careful tuning, so it cannot drift. See "The auto-bounce shaft". |
 | Level assembly | **One continuous composition built from instanced beat scenes.** | Visually seamless and faithful to the designer's layout, while every beat stays separately openable and testable. See "How we build the level". |
@@ -191,18 +191,31 @@ size:
 | On-screen ball | k | Art scale |
 |---|---|---|
 | 48 px | 2 | 19% |
-| **60 px** | **2.5** | **24%** |
+| **72 px** | **3** | **28.8%** |
 | 64 px | ~2.7 | 26% |
 | 96 px | 4 | 38% |
 | 128 px | ~5.3 | 51% |
 
-### The world scale is k = 2.5
+### The world scale is k = 3 — and the level decided it, not the argument
 
-**Ball 60 px across on screen, source art imported at 24%.** Locked, because every beat built
-before the decision would have to be rescaled afterwards, and the transform is cheap now and
-expensive after a hundred pieces exist.
+**Applied.** Ball radius 36, diameter 72, source art imported at 28.8%.
 
-Why 2.5 and not larger, which was the earlier instinct:
+Everything below this heading was reasoning from first principles, and it got the right
+neighbourhood — 2.5 to 3 — for the right reason. But the number was finally settled by
+*measurement*, and that is worth recording because it is the better method.
+
+The first real section was placed by eye against other art, with the ball nowhere on screen to
+judge against. Rendering that level's collision with the ball drawn at its true size made the
+answer obvious: gears came out at 145 px and chimney caps at 131 px against a ball 24 px across.
+k = 3 puts a gear at 2 ball-widths and a cap at 1.8 — which is what the composition shows.
+
+**The placement is the design intent; the tuning number is arbitrary.** When the two disagree,
+move the number.
+
+k = 3 also keeps the tuning hand-editable, which is part of the brief: gravity 1200 → 3600, full
+launch 1000 → 3000, radius 12 → 36, rest speed 40 → 120.
+
+Why not larger, which was the earlier instinct:
 
 - **The preview needs room.** A full launch is 1000 px/s under 1200 px/s² gravity — the ghost line
   for a strong shot spans several hundred prototype pixels. The arc must be visible *and* its
@@ -212,11 +225,43 @@ Why 2.5 and not larger, which was the earlier instinct:
 - **60 px is not a small protagonist.** It is a sixth of a 1080 p screen's height. The prototype's
   24 px ball felt small because it was a flat circle, not because of its size.
 - **2.5 keeps the tuning readable**, which matters because the brief is that these numbers stay
-  hand-editable. Gravity 1200 → 3000, full launch 1000 → 2500, radius 12 → 30. Round numbers that
+  hand-editable. Gravity 1200 → 3600, full launch 1000 → 3000, radius 12 → 36. Round numbers that
   can still be reasoned about by eye.
 
-It is one constant in one transform script and nothing is built on it yet, so it is still a cheap
-number to change — but it stops being cheap the moment the first beat is dressed.
+#### What the transform actually touched
+
+43 fields: every **length, speed and acceleration** multiplied by 3. Every **time, ratio, angle,
+count and mass** left alone — times staying put is what makes the feel identical and only the
+units different. Three things are worth knowing, because they are the places a careless pass goes
+wrong:
+
+- **`lever_pivot_friction` scales by k², not k.** It is a torque, applied as
+  `pivot_friction / inertia() * dt`, and inertia is `mass × half_length² / 3`, so it grows by k².
+  Scaled by k the hinge drag would be three times too weak against the inertia and levers would
+  creep instead of thumping down.
+- **Per-second rates must not scale.** `fans_strength`, `air_drag`, `cables_damping` and
+  `lever_angular_damping` have units of 1/s. `camera_look_ahead` is in seconds and multiplies an
+  already-scaled velocity, so only its cap moved.
+- **The `@export_range` bounds scale with the value.** Miss them and the Inspector silently clamps
+  a scaled number back down the first time anyone drags the slider.
+
+**The test suite found every mistake, and only the real ones.** Three of 81 checks failed, and all
+three were the same kind: a test comparing a hardcoded fixture against a *tuning* value — a drop
+speed against `glass.hardBreakSpeed`, a probe speed against `fans.targetSpeed`, and a plank's
+length against gravity. The other 78 are self-relative and were untouched, which is the proof that
+the transform was uniform. The prediction-exactness checks passed throughout, as they must: the
+ghost and the ball scale identically.
+
+#### It no longer costs anything to change
+
+The art scale is **derived** from the ball's radius rather than stored, so one number moves
+everything: change the radius, re-run the importer, and all 162 pieces rescale and still match the
+ball exactly.
+
+And a level already built does not move at all. A placed piece carries an explicit `scale`
+override, and an override replaces the piece's default outright — so the transform changes the
+ball inside the level rather than the level around it. Placing and scaling are independent, which
+is what makes this safe to revisit if k = 3 turns out to be wrong.
 
 **The morph's extent is now quantified, and it changes the earlier advice.** At its longest the
 worm is 491 px against a 250 px resting circle — it reaches roughly a full radius past the
@@ -279,7 +324,7 @@ It also removes a whole class of edge case: `Ball._resolve_overlap` exists becau
 finds space. With equal radii that can no longer happen. The code stays as a guard; the situation
 stops arising.
 
-With k = 2.5 the unified value is **30**: one `radius` for both forms, 60 px across on screen.
+**Done.** Both are now `36`: one radius, 72 px across, and `Ball._resolve_overlap`'s whole class of edge case can no longer arise.
 
 Note which radius the terrain closing uses. Today it must use the *larger* of the two (squishy's
 12) so one outline is safe for both forms; once they are equal that caveat disappears and the
@@ -754,15 +799,11 @@ The brief is that you can work on this without help, so this is a deliverable, n
 Greybox-first reorders this. **Level building does not wait for the pipeline** — it starts now,
 with blocks that already exist and are already tested, and runs alongside everything else.
 
-**The world scale is settled: k = 2.5.** That unblocks the first greybox, and the next three
+**The world scale is settled and applied: k = 3.** That unblocks the first greybox, and the next three
 actions are in a strict order, because each one would have to be redone if it came earlier:
 
-1. **Apply the scale, in one commit.** Unify `squishy.radius` and `rocky.radius` to **30**, then
-   multiply every length, speed and acceleration in `tuning/tuning_data.gd` by 2.5 and leave every
-   duration alone. The existing prediction-exactness tests verify this for free — they are all
-   relative, so a correct uniform transform leaves all 81 checks green, and *any* number missed or
-   any time value scaled by mistake shows up as a failure. That is the whole reason to do it as its
-   own commit with nothing else in it.
+1. ~~**Apply the scale.**~~ **Done** — k = 3, radii unified at 36, 43 fields moved, 81 checks
+   green. See "The world scale is k = 3".
 2. **The slicer, the manifest, then the importer** — in that order, because each feeds the next.
    Slice the six sheets deterministically with the minimum-area filter that the 1 px specks on Prop
    Sheet 1 proved necessary; generate the manifest with guessed collision kinds; review the guesses;
