@@ -54,6 +54,40 @@ one category, and most of the designer's moving parts map onto systems that alre
 closed outline with no hole support. It needs an explicit answer rather than falling out of the
 pipeline.
 
+### Slicing a sheet: `BitMap.opaque_to_polygons` does it, and more
+
+Godot's built-in sprite sheet slicer is grid-based and cannot express a page of irregularly placed
+blobs. `BitMap.opaque_to_polygons()` can: it finds connected regions *and* simplifies their
+outlines in one call.
+
+Measured on a real 2000x2000 terrain sheet, which it split into **18 shapes**:
+
+| epsilon | verts/shape | biggest |
+|---|---|---|
+| 0.5 | 695 | 1570 — raw trace, this is ink noise |
+| 2.0 | 85 | 179 |
+| **4.0** | **41** | **68** — a good working budget |
+| 8.0 | 27 | 38 |
+
+So the vertex-budget question is answered before Phase 0 even starts: **epsilon ≈ 4 gives ~40
+vertices per piece**, comfortable for `ShapeBody.contact`, which is O(edges).
+
+Better still, it is not only a slicer. One call gives both halves of a piece:
+
+- the polygon's **bounding box** → the AtlasTexture region for the sprite
+- the polygon **itself** → the collision outline, already simplified, ready to be closed by the
+  ball radius
+
+**This requires a transparent background.** The test sheet was ink on opaque white, so the mask had
+to be built by thresholding on *darkness* — which works for black ink and breaks the moment art is
+coloured. The worm is pink and purple and several props have light fills; those would vanish from a
+darkness threshold. With alpha, it is `BitMap.create_from_image_alpha()` and no guessing. **Ask the
+designer for transparent-background exports.**
+
+Two things still unverified: `epsilon` is in source pixels so it scales with *k*, and it is not yet
+known what `opaque_to_polygons` does with a *hole* — which matters for the hollow gears and the ring
+the player passes inside. Test that on a real ring rather than assuming.
+
 ### Terrain: simplify, then close by the ball's radius
 
 A ball of radius *r* physically cannot touch the inside of any pocket narrower than *r*. So do not
