@@ -77,8 +77,13 @@ removes a constraint they may be working under.
 
 ## The character
 
-The player is no longer a drawn circle. It is an animated sprite with states — a fuzzy creature
-with one eye, which deforms as it flies but reads as a circle.
+The player is no longer a drawn circle. It is an animated sprite — a one-eyed worm that curls into
+a circle, with one eye.
+
+**It is a circle in both forms.** The only art that is not circular is the *morph between them*: a
+short sprite sheet where the worm uncurls, flips and curls back up. Those elongated frames are a
+transition, not a shape the worm holds, so **the collision is one circle and never changes.** No
+capsule, no multi-circle body, no orientation state in the simulation.
 
 **Pink-dominant is Squishy, green-dominant is Rocky, and both are the same size.** The form switch
 is the fur: soft and out versus dense and in. That is a strong piece of design, because the player
@@ -143,9 +148,25 @@ No "play the wind-up, then launch". The moment a shot waits on an animation fram
 becomes a lie and the input feels laggy — and the prediction being honest is the whole game.
 Anticipation is cosmetic: the sim acts immediately and the art catches up.
 
-The form switch is the sharp case. In the sim it is instant; gravity changes that frame. The art
-will want a pop, and that pop is cosmetic only. The original design agreed — `fx.switchPopMs` and
-`fx.switchPopScale` are sitting in the unmapped tuning keys.
+**The form switch is the case where this is load-bearing, not merely tidy.** In the sim it is
+instant: gravity changes on the frame the button goes down. The morph animation runs behind it and
+the simulation never waits.
+
+The designer's own beat depends on it. "Switching from Squishy to Heavy just before landing greatly
+reduces the impact" is a precision mid-air action — the player presses switch perhaps 100 ms before
+contact. Gate the switch on the morph finishing and the window becomes unreliable, the preview lies
+about the landing, and the beat that *teaches* the mechanic is the first thing to break.
+
+Two consequences for the visual layer, neither of which touches the sim:
+
+- The morph frames stick out past the collision circle, so switching while resting against a
+  surface will overlap it. Over a couple of hundred milliseconds that reads as squash rather than
+  clipping — accept it, and ask the designer to keep the morph's extent modest.
+- The morph must survive interruption. Switch twice quickly and the sim is already in the new form
+  while the animation is half-way through; the visual layer plays on from where it is, or reverses.
+
+`fx.switchPopMs` and `fx.switchPopScale` are sitting unused in the tuning keys and are where the
+morph's duration belongs.
 
 ### The ball sprite is the scale reference
 
