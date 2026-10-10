@@ -59,6 +59,11 @@ If you add a script with a new `class_name`, run `godot --headless --editor --qu
 so Godot writes it into the class cache — a `--script` run reads that cache and cannot see new
 global classes without it.
 
+## Branches
+
+Work happens on **`development`**, which is permanent. `main` is the release branch and only ever
+receives `development`, so `main` is always a state the suite has passed on.
+
 `.github/workflows/tests.yml` runs the same suite on every push and pull request, pinned to Godot
 4.7.2 because the prediction checks assert exact float equality. It does **not** trust the exit
 code alone: a script that fails to compile anywhere in the project makes the tests that use it
