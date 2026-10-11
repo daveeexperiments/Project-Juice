@@ -98,6 +98,24 @@ static func collision_for(entry: PieceEntry) -> PackedVector2Array:
 			return _closed_outline(entry)
 
 
+## The `TerrainBlock.surface_material` a role calls for.
+##
+## `BREAKABLE` is **glass**, and that is not a placeholder. Glass already IS this mechanism, down
+## to the part that is easy to overlook: `StepWorld.predicted_broken`, which lets the trajectory
+## preview account for a pane the shot is about to smash *without* disturbing the real level. A
+## breakable pipe needs precisely that, plus `broken`, `respawn_seconds` and `rocky_breaks`, all of
+## which a glass shape already carries per piece.
+##
+## What it inherits along with the mechanism is glass's FEEL -- its restitution and friction -- and
+## that is the part to watch. A metal pipe that bounces like a pane will eventually read wrong, and
+## the fix then is to make breakability a property independent of material. That change reaches
+## into `GlassRules.classify` and the rocky-mode branch, so it is worth making once there is a beat
+## to judge it against, rather than on spec.
+static func surface_material_for(role: PieceEntry.Role) -> int:
+	# 0 Wall, 1 Glass, 2 Trampoline -- the enum on TerrainBlock.
+	return 1 if role == PieceEntry.Role.BREAKABLE else 0
+
+
 ## Why `ANNULUS` produces nothing yet, in one place so the importer and its report agree.
 static func annulus_note() -> String:
 	return (

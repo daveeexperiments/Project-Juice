@@ -59,6 +59,7 @@ func _initialize() -> void:
 	_test_spikes_every_side()
 	_test_disc_hazard()
 	_test_pipes()
+	_test_piece_roles()
 	_test_spike_sweep_at_speed()
 	_test_respawn_uses_latest_flag()
 
@@ -260,6 +261,21 @@ func _test_spikes_every_side() -> void:
 
 	var clear: bool = not strip.touches(500.0, 500.0 - 10.0 - r * 3.0, r)
 	_check("spikes do not bite from well clear", clear, "3 radii in front is safe")
+
+
+## A piece's role decides what the importer builds for it.
+func _test_piece_roles() -> void:
+	_check("a plain piece is wall",
+		PieceImporter.surface_material_for(PieceEntry.Role.PLAIN) == 0,
+		"surface_material 0")
+	_check("a breakable piece is glass",
+		PieceImporter.surface_material_for(PieceEntry.Role.BREAKABLE) == 1,
+		"surface_material 1, which carries broken / respawn_seconds / rocky_breaks")
+	# A hazard is still solid in its own right: the deadly disc is a separate child, not a
+	# replacement for the collision. Marking it glass as well would make blades smashable.
+	_check("a hazard keeps its ordinary surface",
+		PieceImporter.surface_material_for(PieceEntry.Role.HAZARD) == 0,
+		"surface_material 0")
 
 
 ## Pipes: the ball goes in one end and comes out the other.

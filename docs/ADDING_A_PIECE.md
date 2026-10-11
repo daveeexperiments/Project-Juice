@@ -183,6 +183,30 @@ simulation, and a static hazard is *shared* by the trajectory preview rather tha
 costs the prediction nothing. Only a gear the ball is meant to **ride** needs real rotation, and
 that is a different system.
 
+## Making a piece breakable
+
+Set `role = BREAKABLE` in the manifest and re-import. The rocky ball smashes through it, the
+squishy one does not, and it respawns.
+
+Already set on the three **cracked** pipe pieces — `prop_sheet_1_12`, `_13` and `_14`. Those are
+not a separate design: they are the cracked twins of the intact `_17`, `_18` and `_19`, drawn as
+matched pairs. Place the cracked one where the ball should be able to get through, the intact one
+where it should not, and the art tells the player which is which before they try it.
+
+Underneath it is the **glass** material, and that is the mechanism rather than a stand-in. Glass
+already carries `broken`, `respawn_seconds` and `rocky_breaks` per piece, plus the part that is
+easy to overlook: `StepWorld.predicted_broken`, which is how the ghost line accounts for a pane
+the shot is about to smash *without* disturbing the real level. So the preview draws the path
+through a pipe the shot will break.
+
+Per placement, the node then carries the usual glass controls — how long until it comes back, and
+whether this particular one follows the global rocky-vs-glass mode or overrides it.
+
+**What to watch:** it inherits glass's *feel* along with the mechanism — its restitution and
+friction. A metal pipe that bounces like a pane will eventually read wrong. The fix then is to make
+breakability independent of material, which reaches into `GlassRules.classify` and the rocky-mode
+branch; worth doing once there is a beat to judge it against, not on spec.
+
 ## Making a pipe the ball travels through
 
 A pipe run is **per placement**, not per piece, because it only exists once you have laid several

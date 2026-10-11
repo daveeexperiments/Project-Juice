@@ -3,12 +3,12 @@
 [ext_resource type="Script" path="res://blocks/terrain_block.gd" id="1_pyhbg"]
 [ext_resource type="Texture2D" path="res://art/atlas/terrain/blob_sheet_2_20.tres" id="2_y2fw1"]
 
-[node name="blob_sheet_2_20" type="Polygon2D" unique_id=166622683]
+[node name="blob_sheet_2_20" type="Polygon2D" unique_id=1852562962]
 scale = Vector2(0.288, 0.288)
 polygon = PackedVector2Array(0.25145, 46.13589, 6.22315, 86.83642, 82.09093, 119.76496, 205.7824, 131.95583, 387.81635, 128.63445, 505.90256, 106.75566, 527.72253, 83.93138, 511.7934, 42.1725, 431.11115, 7.91534, 164.9531, 0.11584, 63.0432, 8.75895)
 script = ExtResource("1_pyhbg")
 show_placeholder = false
 
-[node name="Art" type="Sprite2D" parent="." unique_id=115793541]
+[node name="Art" type="Sprite2D" parent="." unique_id=745799930]
 position = Vector2(264, 66)
 texture = ExtResource("2_y2fw1")

@@ -100,6 +100,7 @@ func _write_scene(piece: PieceEntry, outline: PackedVector2Array, scale: float, 
 		block.set_script(load(BLOCK_SCRIPT))
 		block.polygon = outline
 		block.set("show_placeholder", false)
+		block.set("surface_material", PieceImporter.surface_material_for(piece.role))
 		root = block
 	else:
 		# No collision: a plain sprite, which never joins the `terrain` group.

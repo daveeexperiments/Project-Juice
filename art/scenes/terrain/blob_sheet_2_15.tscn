@@ -3,12 +3,12 @@
 [ext_resource type="Script" path="res://blocks/terrain_block.gd" id="1_vpd0o"]
 [ext_resource type="Texture2D" path="res://art/atlas/terrain/blob_sheet_2_15.tres" id="2_bvfni"]
 
-[node name="blob_sheet_2_15" type="Polygon2D" unique_id=1198834338]
+[node name="blob_sheet_2_15" type="Polygon2D" unique_id=1025905410]
 scale = Vector2(0.288, 0.288)
 polygon = PackedVector2Array(0.26268, 312.01385, 14.22267, 350.8766, 56.14939, 392.79755, 95.34235, 411.8271, 157.6646, 415.8974, 380.12173, 371.97153, 684.5054, 381.52747, 1329.5618, 295.58432, 1634.0132, 308.74985, 1801.847, 297.49142, 1990.0131, 312.74985, 2128.4197, 300.72293, 2205.9058, 282.76358, 2245.8247, 253.81544, 2285.7573, 172.92319, 2282.7556, 102.09745, 2232.4453, 56.91, 2151.9092, 17.2351, 2019.0157, 0.25151, 1776.375, 21.3994, 1592.0316, 16.24849, 1476.8308, 58.39234, 1407.4063, 69.85507, 1028.3298, 70.29295, 798.1859, 123.16497, 536.90717, 107.24088, 325.03152, 122.24851, 147.99304, 171.91985, 77.12142, 204.2191, 21.19711, 256.1611)
 script = ExtResource("1_vpd0o")
 show_placeholder = false
 
-[node name="Art" type="Sprite2D" parent="." unique_id=105050592]
+[node name="Art" type="Sprite2D" parent="." unique_id=293228157]
 position = Vector2(1143, 208)
 texture = ExtResource("2_bvfni")

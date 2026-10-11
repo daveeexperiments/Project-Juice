@@ -103,6 +103,7 @@ enum Kind {
 enum Role {
 	PLAIN, ## A solid. Most pieces.
 	HAZARD, ## Kills on contact. Saw blades, spiked gears.
+	BREAKABLE, ## The rocky ball smashes through it. The cracked pipe sections.
 }
 
 @export var role: Role = Role.PLAIN
