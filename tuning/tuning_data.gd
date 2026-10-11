@@ -210,21 +210,36 @@ extends Resource
 @export_range(0.0, 1.0, 0.01) var camera_look_ahead: float = 0.3
 @export_range(0.0, 1800.0, 10.0) var camera_look_ahead_max: float = 840.0
 
-@export_subgroup("Aim framing")
-## How far the camera may pull back while aiming. Lower shows more; 1 is no pull-back at all.
+## How far out the camera sits normally. Lower shows more of the level.
 ##
-## The ghost line is the mechanic, and a line running off the edge of the screen is a line the
-## player cannot read. So while aiming the camera frames the WHOLE of it -- which means the view
-## has to grow with the shot, because a full-power launch covers several screens at the resting
-## zoom.
-@export_range(0.1, 1.0, 0.01) var camera_aim_zoom_min: float = 0.35
+## **This is the setting that keeps the camera still.** Framed close, the view has to open every
+## time a shot is aimed and close again after, and that constant breathing is far more distracting
+## than simply standing back. At 0.6 the view is about 3200 world px across against a full launch
+## of roughly 3960, so most shots are already on screen before the camera does anything at all.
+@export_range(0.1, 2.0, 0.01) var camera_rest_zoom: float = 0.6
+
+## How far the camera drifts from the target before it bothers to follow (px).
+##
+## The anti-jitter rule. A resting ball is never perfectly still -- the settle hops, the push-out
+## pass and the aim slow-motion all move it a pixel at a time -- and a camera that chases every
+## pixel shimmers. Inside this radius it does not move at all; outside, it eases only far enough to
+## bring the target back to the edge, so following starts gently instead of snapping.
+@export_range(0.0, 400.0, 5.0) var camera_deadzone: float = 90.0
+
+@export_subgroup("Aim framing")
+## How far out the camera goes at FULL pull, on top of the resting view. Set equal to
+## `camera_rest_zoom` for no pull-back at all.
+##
+## Kept small on purpose. The resting view already shows most of a shot, so this is a nudge for
+## the longest ones rather than the thing that makes the line readable.
+@export_range(0.1, 2.0, 0.01) var camera_aim_zoom_min: float = 0.5
 ## How far the view leads along the shot at full pull (px). 0 keeps the ball centred, which spends
 ## half the view on where the shot is coming FROM.
-@export_range(0.0, 2000.0, 10.0) var camera_aim_lead: float = 700.0
+@export_range(0.0, 2000.0, 10.0) var camera_aim_lead: float = 320.0
 ## How quickly the aim lead and the pull strength follow the mouse. Low is calm.
-@export_range(0.01, 1.0, 0.01) var camera_aim_lerp: float = 0.07
+@export_range(0.01, 1.0, 0.01) var camera_aim_lerp: float = 0.05
 ## How quickly the view opens and closes. Slower than the follow, so it reads as a move.
-@export_range(0.01, 1.0, 0.01) var camera_zoom_lerp: float = 0.08
+@export_range(0.01, 1.0, 0.01) var camera_zoom_lerp: float = 0.05
 
 # ---------------------------------------------------------------- glass
 

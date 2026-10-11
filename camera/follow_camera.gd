@@ -34,7 +34,8 @@ func _ready() -> void:
 			_slingshot = parent.get_node_or_null(^"Slingshot") as Slingshot
 	# Godot's own smoothing is off: the Phaser follow is ported here so the feel matches.
 	position_smoothing_enabled = false
-	_zoom = zoom.x
+	_zoom = TuningData.get_active().camera_rest_zoom
+	zoom = Vector2(_zoom, _zoom)
 
 
 func setup(level_bounds: Rect2, target: Ball) -> void:
@@ -54,7 +55,7 @@ func _process(delta: float) -> void:
 	# keeps the follow's own rate, because during a shot the camera should keep up with the ball.
 	var lead_rate: float = t.camera_aim_lerp if pulling or _aim_power > 0.01 else t.camera_follow_lerp
 	_look += (_wanted_lead(t) - _look) * _frame_lerp(lead_rate, delta)
-	_zoom_towards(lerpf(1.0, maxf(0.05, t.camera_aim_zoom_min), _aim_power), t, delta)
+	_zoom_towards(lerpf(t.camera_rest_zoom, t.camera_aim_zoom_min, _aim_power), t, delta)
 
 	var desired: Vector2 = Vector2(_target.state.x, _target.state.y) + _look
 	# The climb offset uses the RESTING view, not the live one. Taken from the zoomed view it grows
@@ -63,7 +64,25 @@ func _process(delta: float) -> void:
 	desired.y -= t.camera_climb_offset * get_viewport_rect().size.y
 
 	var k: float = _frame_lerp(t.camera_follow_lerp, delta)
-	global_position = global_position.lerp(_clamp_to_bounds(desired, _view_size()), k)
+	global_position = global_position.lerp(_with_deadzone(_clamp_to_bounds(desired, _resting_view(t)), t), k)
+
+
+## The target, pulled back towards where the camera already is by the deadzone.
+##
+## A resting ball is never perfectly still: the settle hops, the push-out pass and the aim
+## slow-motion all nudge it a pixel at a time, and a camera chasing every pixel shimmers. Inside
+## the radius the target IS the current position, so nothing moves. Outside, the camera is asked
+## only to bring the target back to the edge of the zone rather than to the centre, so following
+## begins gently instead of snapping to it.
+func _with_deadzone(target: Vector2, t: TuningData) -> Vector2:
+	var radius: float = maxf(0.0, t.camera_deadzone)
+	if radius <= 0.0:
+		return target
+	var offset: Vector2 = target - global_position
+	var distance: float = offset.length()
+	if distance <= radius:
+		return global_position
+	return global_position + offset * ((distance - radius) / distance)
 
 
 ## How hard the shot is being pulled, 0 to 1. The same curve the launch itself uses.
@@ -117,16 +136,28 @@ func snap_to_target() -> void:
 		return
 	_look = Vector2.ZERO
 	_aim_power = 0.0
-	_zoom = 1.0
-	zoom = Vector2.ONE
-	var view: Vector2 = _view_size()
+	_zoom = maxf(_zoom_floor(), TuningData.get_active().camera_rest_zoom)
+	zoom = Vector2(_zoom, _zoom)
 	var t: TuningData = TuningData.get_active()
-	var desired: Vector2 = Vector2(_target.state.x, _target.state.y - t.camera_climb_offset * view.y)
-	global_position = _clamp_to_bounds(desired, view)
+	var desired: Vector2 = Vector2(
+		_target.state.x,
+		_target.state.y - t.camera_climb_offset * get_viewport_rect().size.y,
+	)
+	global_position = _clamp_to_bounds(desired, _resting_view(t))
 
 
-func _view_size() -> Vector2:
-	return get_viewport_rect().size / maxf(0.01, zoom.x)
+## The view at the RESTING zoom, which is what the bounds clamp works against.
+##
+## Clamping against the live view couples the two: the clamp's limits are the bounds inset by half
+## the view, so every change in zoom slides the camera along any edge it is resting on. On a level
+## taller than the view that slide was hundreds of pixels for a single pull -- the camera visibly
+## travelling because the player had moved the mouse. Against a fixed view the clamp holds still
+## and zoom only ever changes how much is visible.
+##
+## The cost is that at full pull-back the view can reach a little past the level edge. That is a
+## far smaller price than the camera moving on its own.
+func _resting_view(t: TuningData) -> Vector2:
+	return get_viewport_rect().size / maxf(0.01, t.camera_rest_zoom)
 
 
 func _clamp_to_bounds(desired: Vector2, view: Vector2) -> Vector2:
