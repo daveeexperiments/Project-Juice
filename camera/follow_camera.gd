@@ -8,27 +8,30 @@ extends Camera2D
 ## view never shows the outside of the map.
 
 @export var target_path: NodePath
-## The ghost line to frame while aiming. Optional: with none, the camera just follows.
-@export var preview_path: NodePath
+## The slingshot to read the aim from. Optional: with none, the camera just follows the ball.
+@export var slingshot_path: NodePath
 
 var _target: Ball = null
-var _preview: TrajectoryPreview = null
+var _slingshot: Slingshot = null
 var _bounds: Rect2 = Rect2()
 var _look: Vector2 = Vector2.ZERO
 ## Eased zoom, so pulling back to show a shot is a move rather than a jump.
 var _zoom: float = 1.0
+## Eased pull strength, 0 to 1. Everything the aiming camera does is a function of this one
+## number, which is why it cannot argue with itself: one smooth input, one smooth response.
+var _aim_power: float = 0.0
 
 
 func _ready() -> void:
 	_target = get_node_or_null(target_path) as Ball
-	_preview = get_node_or_null(preview_path) as TrajectoryPreview
-	if _preview == null:
+	_slingshot = get_node_or_null(slingshot_path) as Slingshot
+	if _slingshot == null:
 		# Fall back to the sibling every level already has. Looking it up rather than requiring the
 		# path means existing level scenes get the aim framing without being edited, and a level
-		# that genuinely has no preview still works -- the framing is simply skipped.
+		# with no slingshot still works -- the framing is simply skipped.
 		var parent: Node = get_parent()
 		if parent != null:
-			_preview = parent.get_node_or_null(^"TrajectoryPreview") as TrajectoryPreview
+			_slingshot = parent.get_node_or_null(^"Slingshot") as Slingshot
 	# Godot's own smoothing is off: the Phaser follow is ported here so the feel matches.
 	position_smoothing_enabled = false
 	_zoom = zoom.x
@@ -44,64 +47,76 @@ func _process(delta: float) -> void:
 	if _target == null:
 		return
 	var t: TuningData = TuningData.get_active()
+
+	var pulling: bool = _slingshot != null and _slingshot.aiming
+	_aim_power += (_wanted_power() - _aim_power) * _frame_lerp(t.camera_aim_lerp, delta)
+	# The aim lead eases slowly so the mouse cannot whip the view about; the flight look-ahead
+	# keeps the follow's own rate, because during a shot the camera should keep up with the ball.
+	var lead_rate: float = t.camera_aim_lerp if pulling or _aim_power > 0.01 else t.camera_follow_lerp
+	_look += (_wanted_lead(t) - _look) * _frame_lerp(lead_rate, delta)
+	_zoom_towards(lerpf(1.0, maxf(0.05, t.camera_aim_zoom_min), _aim_power), t, delta)
+
+	var desired: Vector2 = Vector2(_target.state.x, _target.state.y) + _look
+	# The climb offset uses the RESTING view, not the live one. Taken from the zoomed view it grows
+	# with the pull-back, so simply opening the view would drag the framing upward at the same
+	# time -- two movements for one input, which is most of what read as the camera fighting back.
+	desired.y -= t.camera_climb_offset * get_viewport_rect().size.y
+
 	var k: float = _frame_lerp(t.camera_follow_lerp, delta)
+	global_position = global_position.lerp(_clamp_to_bounds(desired, _view_size()), k)
+
+
+## How hard the shot is being pulled, 0 to 1. The same curve the launch itself uses.
+##
+## Driven by the DRAG rather than by the ghost line, and that is the whole fix. The line is
+## re-simulated every frame and its extent jumps whenever the ghost clips a wall or spends its
+## bounce budget; a camera framing it chases a signal that moves on its own. The drag is the
+## player's hand. It only changes when they move, it changes smoothly, and leading it reads as the
+## camera anticipating rather than arguing.
+func _wanted_power() -> float:
+	if _slingshot == null or not _slingshot.aiming or _slingshot.last_aim == null:
+		return 0.0
+	var t: TuningData = TuningData.get_active()
+	var length: float = _slingshot.last_aim.length
+	var span: float = maxf(1.0, t.slingshot_drag_for_max_power - t.slingshot_dead_zone)
+	return clampf((length - t.slingshot_dead_zone) / span, 0.0, 1.0)
+
+
+## Where to look: along the shot while aiming, along the travel while flying.
+func _wanted_lead(t: TuningData) -> Vector2:
+	if _slingshot != null and _slingshot.aiming and _slingshot.last_aim != null:
+		# Out along the launch direction, as far as the pull deserves. Both terms are smooth in the
+		# mouse position, so the target never jitters on its own.
+		return _slingshot.last_aim.direction * (_aim_power * t.camera_aim_lead)
 
 	var velocity: Vector2 = Vector2(_target.state.vx, _target.state.vy)
-	var wanted: Vector2 = Vector2(
+	return Vector2(
 		clampf(velocity.x * t.camera_look_ahead, -t.camera_look_ahead_max, t.camera_look_ahead_max),
 		clampf(maxf(0.0, velocity.y) * t.camera_look_ahead, 0.0, t.camera_look_ahead_max),
 	)
-	_look += (wanted - _look) * k
-
-	# Pull back far enough to hold the whole shot, then settle back in once it is away.
-	var framing: Rect2 = _aim_framing()
-	_apply_zoom(_zoom_for(framing), delta, t)
-
-	var view: Vector2 = _view_size()
-	var desired: Vector2 = Vector2(_target.state.x, _target.state.y - t.camera_climb_offset * view.y) + _look
-
-	if framing.size != Vector2.ZERO:
-		# Centre between the ball and the far end of the line rather than on the ball. Keeping the
-		# ball centred while zoomed out wastes half the view on where the shot is coming FROM.
-		var middle: Vector2 = framing.get_center()
-		desired = desired.lerp(middle, clampf(t.camera_aim_recentre, 0.0, 1.0))
-
-	global_position = global_position.lerp(_clamp_to_bounds(desired, view), k)
 
 
-## The box to keep on screen while aiming: the ghost line plus the ball. Empty when not aiming.
-func _aim_framing() -> Rect2:
-	if _preview == null:
-		return Rect2()
-	var line: Rect2 = _preview.line_bounds()
-	if line.size == Vector2.ZERO:
-		return Rect2()
-	return line.expand(Vector2(_target.state.x, _target.state.y))
-
-
-## How far out to pull so `framing` fits, as a zoom factor. 1 is the default view.
-func _zoom_for(framing: Rect2) -> float:
-	var t: TuningData = TuningData.get_active()
-	if framing.size == Vector2.ZERO:
-		return 1.0
-	var screen: Vector2 = get_viewport_rect().size
-	var wanted: Vector2 = framing.size + Vector2.ONE * (t.camera_aim_margin * 2.0)
-	# Zoom BELOW 1 shows more. Take whichever axis needs the most room, and never zoom IN past the
-	# resting view -- a short drag should not shove the camera into the ball's face.
-	var fit: float = minf(screen.x / maxf(1.0, wanted.x), screen.y / maxf(1.0, wanted.y))
-	return clampf(fit, maxf(0.05, t.camera_aim_zoom_min), 1.0)
-
-
-func _apply_zoom(wanted: float, delta: float, t: TuningData) -> void:
-	var k: float = _frame_lerp(t.camera_zoom_lerp, delta)
-	_zoom += (wanted - _zoom) * k
+func _zoom_towards(wanted: float, t: TuningData, delta: float) -> void:
+	# Never open the view wider than the level itself. Past that point `_clamp_to_bounds` stops
+	# following the ball and parks on the middle of the map, which lands as a jump to somewhere the
+	# player is not -- and on a level with one stray piece far out, somewhere very far away.
+	_zoom = maxf(_zoom_floor(), _zoom + (wanted - _zoom) * _frame_lerp(t.camera_zoom_lerp, delta))
 	zoom = Vector2(_zoom, _zoom)
+
+
+## The most zoomed-OUT the view may get and still fit inside the level.
+func _zoom_floor() -> float:
+	if _bounds.size.x <= 0.0 or _bounds.size.y <= 0.0:
+		return 0.05
+	var screen: Vector2 = get_viewport_rect().size
+	return minf(1.0, maxf(screen.x / _bounds.size.x, screen.y / _bounds.size.y))
 
 
 func snap_to_target() -> void:
 	if _target == null:
 		return
 	_look = Vector2.ZERO
+	_aim_power = 0.0
 	_zoom = 1.0
 	zoom = Vector2.ONE
 	var view: Vector2 = _view_size()

@@ -218,11 +218,11 @@ extends Resource
 ## has to grow with the shot, because a full-power launch covers several screens at the resting
 ## zoom.
 @export_range(0.1, 1.0, 0.01) var camera_aim_zoom_min: float = 0.35
-## Clear space to leave around the framed shot (px), so the line never touches the edge.
-@export_range(0.0, 1000.0, 10.0) var camera_aim_margin: float = 220.0
-## How far to slide from the ball towards the middle of the shot while aiming. 0 keeps the ball
-## centred, which wastes half the view on where the shot is coming FROM.
-@export_range(0.0, 1.0, 0.05) var camera_aim_recentre: float = 0.6
+## How far the view leads along the shot at full pull (px). 0 keeps the ball centred, which spends
+## half the view on where the shot is coming FROM.
+@export_range(0.0, 2000.0, 10.0) var camera_aim_lead: float = 700.0
+## How quickly the aim lead and the pull strength follow the mouse. Low is calm.
+@export_range(0.01, 1.0, 0.01) var camera_aim_lerp: float = 0.07
 ## How quickly the view opens and closes. Slower than the follow, so it reads as a move.
 @export_range(0.01, 1.0, 0.01) var camera_zoom_lerp: float = 0.08
 

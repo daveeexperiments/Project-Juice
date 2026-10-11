@@ -31,6 +31,12 @@ var _cradle_surface: Vector2 = Vector2.ZERO
 ## Which edge of the aim range the drag last rested on, so the clamp cannot flicker.
 var _last_edge: int = AimMath.EDGE_FROM
 
+## The aim the last `update_aim` worked from. Read by the camera so it leads exactly the shot the
+## ghost line is drawing, and so that reading it costs nothing and changes nothing: `_aim()` keeps
+## the clamp's memory in `_last_edge`, and having the camera call it again each frame would mean a
+## second caller quietly writing to that.
+var last_aim: AimMath.AimVector = null
+
 var _ball: Ball = null
 var _preview: TrajectoryPreview = null
 var _world: StepWorld = null
@@ -186,6 +192,7 @@ func _aim() -> AimMath.AimVector:
 	var snap: float = TuningData.get_active().slingshot_angle_snap_step if Input.is_action_pressed("aim_snap") else 0.0
 	var aim: AimMath.AimVector = AimMath.aim_from_drag(raw, snap, _aim_range(), _last_edge)
 	_last_edge = aim.edge
+	last_aim = aim
 	return aim
 
 
