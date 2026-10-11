@@ -1,2 +1,29 @@
 # Normalize EOL for all files that Git considers text files.
 * text=auto eol=lf
+
+# Binaries: never touch the bytes.
+#
+# `text=auto` above asks Git to GUESS which files are text. It is usually right, but a binary it
+# guesses wrong about gets its line endings "normalised" -- which silently corrupts the file, and
+# the corruption only shows up when something tries to load it. Spelling the formats out removes
+# the guess for everything this project actually stores.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.gif   binary
+*.bmp   binary
+*.tga   binary
+*.psd   binary
+*.aseprite binary
+*.ase   binary
+*.ogg   binary
+*.wav   binary
+*.mp3   binary
+*.ttf   binary
+*.otf   binary
+*.woff  binary
+*.woff2 binary
+
+# SVG is XML, so it stays text and diffs usefully.
+*.svg   text eol=lf

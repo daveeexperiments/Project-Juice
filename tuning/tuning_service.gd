@@ -16,8 +16,14 @@ const DEFAULT_RESOURCE_PATH: String = "res://tuning/default.tres"
 
 ## The live values. Everything the player feels comes from here.
 @export var data: TuningData = null
-## Set false to keep default.tres exactly as authored, ignoring the exported Phaser values.
-@export var load_phaser_json: bool = true
+## Re-import the retired Phaser project's values over the top of the authored ones.
+##
+## **Off, and it should stay off.** It defaulted to ON, which meant the numbers the game ran on
+## came from `phaser_tuning.json` rather than from `TuningData`'s own defaults or from
+## `default.tres` -- both of which were loaded and then immediately overwritten. See the comment
+## on `TuningData.PHASER_JSON_PATH` for why that is no longer wanted. Turn it on only to compare
+## against the original.
+@export var load_phaser_json: bool = false
 
 
 func _ready() -> void:
@@ -28,9 +34,9 @@ func _ready() -> void:
 	if load_phaser_json:
 		var unmapped: PackedStringArray = data.load_phaser_json(TuningData.PHASER_JSON_PATH)
 		if unmapped.size() > 0:
-			# Not an error: these are the systems later phases will bring over. Printed once so
-			# the gap between the two projects is visible rather than assumed.
-			print("Tuning: %d Phaser values have no field in this phase (see docs/PORTING.md)." % unmapped.size())
+			# The systems that were never ported. Printed once so the gap between the two
+			# projects is visible rather than assumed.
+			print("Tuning: %d Phaser values have no field here (see docs/PORTING.md)." % unmapped.size())
 
 	TuningData.active = data
 

@@ -1,0 +1,14 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://blocks/terrain_block.gd" id="1_hbmil"]
+[ext_resource type="Texture2D" path="res://art/atlas/props/prop_sheet_1_15.tres" id="2_ydkhh"]
+
+[node name="prop_sheet_1_15" type="Polygon2D" unique_id=337157298]
+scale = Vector2(0.288, 0.288)
+polygon = PackedVector2Array(311.01385, 773.7373, 470.9197, 752.7546, 537.8549, 724.77325, 670.7677, 600.83344, 685.4119, 551.9747, 714.73615, 515.91675, 732.7309, 348.00287, 691.758, 201.13416, 589.8335, 81.20366, 531.88983, 42.23886, 452.9354, 12.26127, 398.96564, 17.89207, 343.00323, 0.26302, 199.11533, 27.24319, 168.3655, 54.14524, 119.14508, 72.2267, 51.18103, 128.19084, 12.26658, 180.10307, 32.23008, 255.8725, 128.95024, 331.53494, 152.71616, 405.57248, 143.55815, 451.83252, 106.27243, 502.09628, 64.65842, 524.2804, 0.43988, 536.17004, 31.26734, 606.9928, 90.15677, 677.7812, 130.87485, 692.8338, 171.12793, 729.7632, 247.07912, 762.74915)
+script = ExtResource("1_hbmil")
+show_placeholder = false
+
+[node name="Art" type="Sprite2D" parent="." unique_id=648996450]
+position = Vector2(366.5, 387)
+texture = ExtResource("2_ydkhh")

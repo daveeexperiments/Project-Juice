@@ -15,9 +15,9 @@ extends Resource
 
 @export_group("World")
 ## Downward acceleration in px/s^2, before each ball's own multiplier.
-@export_range(0.0, 4000.0, 1.0) var world_gravity: float = 1200.0
+@export_range(0.0, 12000.0, 1.0) var world_gravity: float = 3600.0
 ## Nothing may travel faster than this (px/s). Keeps fast shots solvable by the substepper.
-@export_range(100.0, 4000.0, 10.0) var world_max_ball_speed: float = 1400.0
+@export_range(300.0, 12000.0, 10.0) var world_max_ball_speed: float = 4200.0
 ## Fixed steps per second. Must match the project's physics ticks, or prediction drifts.
 @export_range(30.0, 240.0, 1.0) var world_physics_step_rate: float = 120.0
 ## Global slow/fast motion. 1 is normal.
@@ -27,9 +27,9 @@ extends Resource
 ## Scales the per-material rolling friction.
 @export_range(0.0, 4.0, 0.05) var world_rolling_friction: float = 1.0
 ## How far below the ball the support probe looks (px).
-@export_range(0.0, 20.0, 0.5) var world_edge_support_margin: float = 2.0
+@export_range(0.0, 60.0, 0.5) var world_edge_support_margin: float = 6.0
 ## At or below this speed a grounded ball counts as resting (px/s).
-@export_range(0.0, 400.0, 1.0) var world_rest_max_speed: float = 40.0
+@export_range(0.0, 1200.0, 1.0) var world_rest_max_speed: float = 120.0
 
 # ---------------------------------------------------------------- surfaces
 
@@ -37,30 +37,30 @@ extends Resource
 ## Multiplies every ball's bounce off rock.
 @export_range(0.0, 2.0, 0.01) var surface_wall_restitution_multiplier: float = 1.0
 ## Rolling/sliding slowdown while resting on rock (px/s^2).
-@export_range(0.0, 4000.0, 10.0) var surface_wall_friction: float = 900.0
+@export_range(0.0, 12000.0, 10.0) var surface_wall_friction: float = 2700.0
 ## Multiplies every ball's bounce off glass.
 @export_range(0.0, 2.0, 0.01) var surface_glass_restitution_multiplier: float = 1.0
 ## Rolling/sliding slowdown while resting on glass (px/s^2).
-@export_range(0.0, 4000.0, 10.0) var surface_glass_friction: float = 400.0
+@export_range(0.0, 12000.0, 10.0) var surface_glass_friction: float = 1200.0
 
 # ---------------------------------------------------------------- squishy ball
 
 @export_group("Squishy ball")
 @export_range(0.0, 3.0, 0.05) var squishy_gravity_multiplier: float = 0.7
-@export_range(4.0, 40.0, 0.5) var squishy_radius: float = 12.0
-@export_range(0.0, 2000.0, 10.0) var squishy_min_launch_speed: float = 200.0
-@export_range(100.0, 2500.0, 10.0) var squishy_max_launch_speed: float = 1000.0
+@export_range(12.0, 120.0, 0.5) var squishy_radius: float = 36.0
+@export_range(0.0, 6000.0, 10.0) var squishy_min_launch_speed: float = 600.0
+@export_range(300.0, 7500.0, 10.0) var squishy_max_launch_speed: float = 3000.0
 @export_range(0.0, 1.5, 0.01) var squishy_restitution_wall: float = 0.35
 @export_range(0.0, 1.5, 0.01) var squishy_restitution_glass: float = 0.65
 ## Fraction of sideways speed KEPT on a floor impact. Lower is grippier.
 @export_range(0.0, 1.0, 0.01) var squishy_landing_friction: float = 0.92
 @export_range(0.0, 3.0, 0.05) var squishy_air_drag: float = 0.0
 ## Below this bounce speed the ball simply stops (px/s).
-@export_range(0.0, 400.0, 1.0) var squishy_stop_bounce_threshold: float = 45.0
+@export_range(0.0, 1200.0, 1.0) var squishy_stop_bounce_threshold: float = 135.0
 @export_range(0.0, 1.0, 0.01) var squishy_squash_amount: float = 0.5
 ## Landing on something flat: a couple of shrinking hops, then it stays put.
 @export var squishy_settles_on_landing: bool = true
-@export_range(0.0, 200.0, 1.0) var squishy_settle_bounce_height: float = 26.0
+@export_range(0.0, 600.0, 1.0) var squishy_settle_bounce_height: float = 78.0
 @export_range(0.0, 6.0, 1.0) var squishy_settle_hops: int = 2
 ## Fraction of sideways speed REMOVED on a landing. 1 sticks where it lands.
 @export_range(0.0, 1.0, 0.01) var squishy_landing_grip: float = 0.86
@@ -71,17 +71,17 @@ extends Resource
 
 @export_group("Rocky ball")
 @export_range(0.0, 3.0, 0.05) var rocky_gravity_multiplier: float = 1.6
-@export_range(4.0, 40.0, 0.5) var rocky_radius: float = 11.0
-@export_range(0.0, 2000.0, 10.0) var rocky_min_launch_speed: float = 180.0
-@export_range(100.0, 2500.0, 10.0) var rocky_max_launch_speed: float = 850.0
+@export_range(12.0, 120.0, 0.5) var rocky_radius: float = 36.0
+@export_range(0.0, 6000.0, 10.0) var rocky_min_launch_speed: float = 540.0
+@export_range(300.0, 7500.0, 10.0) var rocky_max_launch_speed: float = 2550.0
 @export_range(0.0, 1.5, 0.01) var rocky_restitution_wall: float = 0.0
 @export_range(0.0, 1.5, 0.01) var rocky_restitution_glass: float = 0.0
 @export_range(0.0, 1.0, 0.01) var rocky_landing_friction: float = 0.3
 @export_range(0.0, 3.0, 0.05) var rocky_air_drag: float = 0.0
-@export_range(0.0, 400.0, 1.0) var rocky_stop_bounce_threshold: float = 60.0
+@export_range(0.0, 1200.0, 1.0) var rocky_stop_bounce_threshold: float = 180.0
 @export_range(0.0, 1.0, 0.01) var rocky_squash_amount: float = 0.0
 @export var rocky_settles_on_landing: bool = false
-@export_range(0.0, 200.0, 1.0) var rocky_settle_bounce_height: float = 0.0
+@export_range(0.0, 600.0, 1.0) var rocky_settle_bounce_height: float = 0.0
 @export_range(0.0, 6.0, 1.0) var rocky_settle_hops: int = 0
 @export_range(0.0, 1.0, 0.01) var rocky_landing_grip: float = 0.7
 @export_range(0.0, 40.0, 0.1) var rocky_mass: float = 6.0
@@ -100,6 +100,27 @@ extends Resource
 @export var grounded_launch_from_fan: bool = true
 ## How far off straight up a fan may blow and still be launchable (degrees).
 @export_range(0.0, 89.0, 1.0) var grounded_fan_launch_angle: float = 45.0
+## How far below a stationary ball to look for something it could stand on (px). 0 turns it off.
+##
+## The anti-stranding rule. A ball that has stopped dead a little clear of a surface -- wedged in a
+## dip, settled on a curve, held just off a ledge -- is not airborne in any sense the player would
+## recognise, but the ordinary support probe reaches only a few pixels and reports nothing. In a
+## game with no walking, a shot that will not fire there ends the run.
+##
+## It only applies while the ball is already at rest, which is what stops it handing a free shot to
+## the apex of every vertical launch.
+@export_range(0.0, 400.0, 1.0) var grounded_hover_reach: float = 40.0
+## How long the ball must stay still before a shot is allowed from wherever it is (seconds).
+##
+## The broadest of the anti-stranding rules: a ball that has simply STOPPED can shoot, whatever it
+## did or did not come to rest against.
+##
+## It is a DURATION, not a speed, and that is what makes it safe. Velocity passes through zero at
+## the apex of every vertical shot, so "slow right now" would be a free second launch in mid-air,
+## repeatable for ever. A ball that looks stationary stays stationary for a moment; an apex does
+## not, because gravity is already pulling it back through. Keep this comfortably longer than an
+## apex lingers -- the test suite measures that and fails if the margin disappears.
+@export_range(0.0, 2.0, 0.01) var grounded_rest_time: float = 0.2
 
 # ---------------------------------------------------------------- the launch limiter
 
@@ -152,11 +173,11 @@ extends Resource
 
 @export_group("Slingshot")
 ## Drags shorter than this are not a shot at all (px).
-@export_range(0.0, 100.0, 1.0) var slingshot_dead_zone: float = 12.0
+@export_range(0.0, 300.0, 1.0) var slingshot_dead_zone: float = 36.0
 ## Drag distance that gives full power (px).
-@export_range(40.0, 600.0, 5.0) var slingshot_drag_for_max_power: float = 220.0
+@export_range(120.0, 1800.0, 5.0) var slingshot_drag_for_max_power: float = 660.0
 ## How far the fork lifts the ball off a surface, in ball radii.
-@export_range(0.0, 4.0, 0.1) var slingshot_cradle_lift: float = 1.4
+@export_range(0.0, 4.0, 0.1) var slingshot_cradle_lift: float = 1.5
 ## Shift snaps the aim to multiples of this (degrees). 0 = no snapping.
 @export_range(0.0, 45.0, 1.0) var slingshot_angle_snap_step: float = 5.0
 ## 0 = full 360, 1 = upward only, 2 = custom (uses the min/max below).
@@ -179,15 +200,15 @@ extends Resource
 
 @export_group("Prediction")
 ## How far the ghost line runs (px of path length).
-@export_range(100.0, 4000.0, 10.0) var preview_length: float = 1400.0
+@export_range(300.0, 12000.0, 10.0) var preview_length: float = 4200.0
 ## The first contact plus this many further bounces.
 @export_range(0.0, 5.0, 1.0) var preview_bounces: int = 3
 ## How much the line fades along its length (0 = no fade).
-@export_range(0.0, 1.0, 0.05) var preview_fade: float = 0.4
+@export_range(0.0, 1.0, 0.05) var preview_fade: float = 0.7
 ## How much dimmer each bounce segment is than the one before.
 @export_range(0.0, 1.0, 0.05) var preview_bounce_fade: float = 0.4
-@export_range(1.0, 40.0, 1.0) var preview_dash_length: float = 9.0
-@export_range(2.0, 60.0, 1.0) var preview_dash_spacing: float = 16.0
+@export_range(3.0, 120.0, 1.0) var preview_dash_length: float = 27.0
+@export_range(6.0, 180.0, 1.0) var preview_dash_spacing: float = 51.0
 
 # ---------------------------------------------------------------- camera
 
@@ -197,30 +218,61 @@ extends Resource
 ## Per-frame follow factor at 60fps; converted to frame-rate independent internally.
 @export_range(0.01, 1.0, 0.01) var camera_follow_lerp: float = 0.12
 ## Look-ahead in the direction of travel, as a multiple of speed.
-@export_range(0.0, 1.0, 0.01) var camera_look_ahead: float = 0.25
-@export_range(0.0, 600.0, 10.0) var camera_look_ahead_max: float = 220.0
+@export_range(0.0, 1.0, 0.01) var camera_look_ahead: float = 0.3
+@export_range(0.0, 1800.0, 10.0) var camera_look_ahead_max: float = 840.0
+
+## How far out the camera sits normally. Lower shows more of the level.
+##
+## **This is the setting that keeps the camera still.** Framed close, the view has to open every
+## time a shot is aimed and close again after, and that constant breathing is far more distracting
+## than simply standing back. At 0.6 the view is about 3200 world px across against a full launch
+## of roughly 3960, so most shots are already on screen before the camera does anything at all.
+@export_range(0.1, 2.0, 0.01) var camera_rest_zoom: float = 0.6
+
+## How far the camera drifts from the target before it bothers to follow (px).
+##
+## The anti-jitter rule. A resting ball is never perfectly still -- the settle hops, the push-out
+## pass and the aim slow-motion all move it a pixel at a time -- and a camera that chases every
+## pixel shimmers. Inside this radius it does not move at all; outside, it eases only far enough to
+## bring the target back to the edge, so following starts gently instead of snapping.
+@export_range(0.0, 400.0, 5.0) var camera_deadzone: float = 90.0
+
+@export_subgroup("Aim framing")
+## How far out the camera goes at FULL pull, on top of the resting view. Set equal to
+## `camera_rest_zoom` for no pull-back at all.
+##
+## Kept small on purpose. The resting view already shows most of a shot, so this is a nudge for
+## the longest ones rather than the thing that makes the line readable.
+@export_range(0.1, 2.0, 0.01) var camera_aim_zoom_min: float = 0.5
+## How far the view leads along the shot at full pull (px). 0 keeps the ball centred, which spends
+## half the view on where the shot is coming FROM.
+@export_range(0.0, 2000.0, 10.0) var camera_aim_lead: float = 320.0
+## How quickly the aim lead and the pull strength follow the mouse. Low is calm.
+@export_range(0.01, 1.0, 0.01) var camera_aim_lerp: float = 0.05
+## How quickly the view opens and closes. Slower than the follow, so it reads as a move.
+@export_range(0.01, 1.0, 0.01) var camera_zoom_lerp: float = 0.05
 
 # ---------------------------------------------------------------- glass
 
 @export_group("Glass")
 ## Minimum speed off glass in Boost mode (px/s), however gently it was hit.
-@export_range(0.0, 2000.0, 10.0) var glass_boost_strength: float = 520.0
+@export_range(0.0, 6000.0, 10.0) var glass_boost_strength: float = 1560.0
 ## How much of the impact speed is added on top of that.
 @export_range(0.0, 3.0, 0.05) var glass_boost_impact_gain: float = 0.55
 ## Fraction of the sideways speed kept, so the angle of approach still carries through.
 @export_range(0.0, 1.5, 0.01) var glass_boost_sideways_keep: float = 0.65
 ## Hard cap on the speed leaving a glass bounce, which keeps zig-zags controllable.
-@export_range(100.0, 2500.0, 10.0) var glass_boost_max_speed: float = 900.0
+@export_range(300.0, 7500.0, 10.0) var glass_boost_max_speed: float = 2700.0
 ## What the ROCKY ball does to glass. Squishy is unaffected by all of this.
 @export_enum("Break obstructions only:0", "Always break:1", "Hard hits only:2", "Never break:3", "Pass through:4") var glass_rocky_mode: int = 1
 ## "Hard hits only": the speed INTO the pane needed to shatter it (px/s).
-@export_range(0.0, 2000.0, 10.0) var glass_hard_break_speed: float = 520.0
+@export_range(0.0, 6000.0, 10.0) var glass_hard_break_speed: float = 1560.0
 ## "Pass through": fraction of speed shed per second while inside a pane.
 @export_range(0.0, 8.0, 0.05) var glass_pass_through_drag: float = 1.2
 ## On: the global mode wins over every piece's own rocky_breaks setting.
 @export var glass_panel_overrides_level: bool = false
 ## "Break obstructions only": how close a pane must lie to the rock behind it to be cladding.
-@export_range(0.0, 24.0, 0.5) var glass_wall_gap: float = 4.0
+@export_range(0.0, 72.0, 0.5) var glass_wall_gap: float = 12.0
 ## ...and how far off parallel it may sit and still count as lying flat (degrees).
 @export_range(0.0, 45.0, 1.0) var glass_wall_angle: float = 10.0
 ## Seconds until broken glass returns. -1 = use each piece's own setting, 0 = never.
@@ -240,10 +292,10 @@ extends Resource
 @export_range(0.0, 89.0, 1.0) var rising_glass_min_angle: float = 30.0
 @export_range(0.0, 89.0, 1.0) var rising_wall_min_angle: float = 20.0
 ## ...and the upward speed it climbs at, so it climbs rather than nudging up and dropping.
-@export_range(0.0, 1200.0, 10.0) var rising_glass_min_up_speed: float = 420.0
-@export_range(0.0, 1200.0, 10.0) var rising_wall_min_up_speed: float = 300.0
+@export_range(0.0, 3600.0, 10.0) var rising_glass_min_up_speed: float = 1260.0
+@export_range(0.0, 3600.0, 10.0) var rising_wall_min_up_speed: float = 900.0
 ## Below this upward speed at contact the ball counts as falling, so an apex behaves normally.
-@export_range(0.0, 400.0, 1.0) var rising_threshold: float = 60.0
+@export_range(0.0, 1200.0, 1.0) var rising_threshold: float = 180.0
 ## A ceiling cannot throw a ball up through itself, so hold the lift until it clears the edge.
 @export var rising_skim_lift: bool = true
 
@@ -254,8 +306,8 @@ extends Resource
 @export var squishy_breaks_glass: bool = false
 @export var rocky_breaks_glass: bool = true
 ## How hard this ball must hit glass to break it at all (px/s).
-@export_range(0.0, 1000.0, 5.0) var squishy_glass_break_min_impact: float = 0.0
-@export_range(0.0, 1000.0, 5.0) var rocky_glass_break_min_impact: float = 5.0
+@export_range(0.0, 3000.0, 5.0) var squishy_glass_break_min_impact: float = 0.0
+@export_range(0.0, 3000.0, 5.0) var rocky_glass_break_min_impact: float = 15.0
 ## Fraction of speed kept when smashing through a pane.
 @export_range(0.0, 1.0, 0.01) var squishy_glass_break_speed_keep: float = 1.0
 @export_range(0.0, 1.0, 0.01) var rocky_glass_break_speed_keep: float = 0.85
@@ -271,7 +323,7 @@ extends Resource
 ## How long the wipe-out takes before the ball reappears at the flag (seconds).
 @export_range(0.0, 1.5, 0.05) var spikes_respawn_delay: float = 0.35
 ## How close the ball must come to raise a flag (px beyond its own radius).
-@export_range(0.0, 120.0, 2.0) var flags_touch_radius: float = 26.0
+@export_range(0.0, 360.0, 2.0) var flags_touch_radius: float = 78.0
 ## On: a rope the ball has come to REST in is a checkpoint in its own right. Off in the shipped
 ## tuning, which is why cables are a route rather than a safety net.
 @export var flags_cables_are_checkpoints: bool = false
@@ -283,9 +335,9 @@ extends Resource
 ## SHORTFALL below the target, so it never brakes a ball that is already going faster.
 @export_range(0.0, 40.0, 0.1) var fans_strength: float = 9.0
 ## The speed the stream carries a ball at (px/s).
-@export_range(0.0, 2000.0, 10.0) var fans_target_speed: float = 430.0
+@export_range(0.0, 6000.0, 10.0) var fans_target_speed: float = 1290.0
 ## How far the stream reaches (px).
-@export_range(0.0, 2000.0, 10.0) var fans_range: float = 640.0
+@export_range(0.0, 6000.0, 10.0) var fans_range: float = 1920.0
 ## Exponent on the fade along the stream. 1 is a straight taper; higher keeps the push strong near
 ## the mouth and then drops it off a cliff.
 @export_range(0.0, 4.0, 0.05) var fans_falloff: float = 1.1
@@ -299,7 +351,7 @@ extends Resource
 
 @export_group("Trampolines")
 ## The speed a pad throws a launching ball off at, however gently it was hit (px/s).
-@export_range(0.0, 2500.0, 10.0) var trampoline_launch_speed: float = 1150.0
+@export_range(0.0, 7500.0, 10.0) var trampoline_launch_speed: float = 3450.0
 ## How much of the impact speed is added on top, so arriving fast is rewarded.
 @export_range(0.0, 3.0, 0.05) var trampoline_impact_bonus: float = 0.45
 ## Fraction of the sideways speed kept, so the approach still decides where the ball goes.
@@ -322,18 +374,18 @@ extends Resource
 @export_range(0.0, 1.0, 0.01) var cables_damping: float = 0.04
 ## How far the middle may droop below the line between the anchors (px). Stops a long cable
 ## sinking to the floor and ceasing to be a route.
-@export_range(0.0, 400.0, 1.0) var cables_max_sag: float = 56.0
+@export_range(0.0, 1200.0, 1.0) var cables_max_sag: float = 168.0
 ## How much the rope gives rather than throwing. 0 is a rail; 1 is all give.
 @export_range(0.0, 1.0, 0.01) var cables_softness: float = 0.55
 ## The rope's collision radius (px).
-@export_range(1.0, 40.0, 0.5) var cables_thickness: float = 5.0
+@export_range(3.0, 120.0, 0.5) var cables_thickness: float = 15.0
 ## How far the rope is shoved aside by the hardest hit there is (px).
-@export_range(0.0, 120.0, 1.0) var cables_recoil: float = 14.0
+@export_range(0.0, 360.0, 1.0) var cables_recoil: float = 42.0
 ## Sideways slowdown while rolling along a rope (px/s^2).
-@export_range(0.0, 2000.0, 10.0) var cables_rolling_friction: float = 70.0
+@export_range(0.0, 6000.0, 10.0) var cables_rolling_friction: float = 210.0
 ## How strongly a resting ball is drawn towards the middle of the rope (px/s^2), so it rolls to
 ## the low point instead of balancing near an anchor.
-@export_range(0.0, 2000.0, 10.0) var cables_centring_bias: float = 70.0
+@export_range(0.0, 6000.0, 10.0) var cables_centring_bias: float = 210.0
 ## On: a rope always throws the ball to the same height, whatever the drop. Off: an ordinary
 ## physical bounce at the ball's own `cableBounce`. The same reflect-or-boost choice glass has.
 @export var cables_sustain_bounce: bool = false
@@ -345,6 +397,21 @@ extends Resource
 ## Whether a rope puts a spent launch budget, or a worn band, back.
 @export var cables_refills_charges: bool = true
 @export var cables_restores_elasticity: bool = false
+
+# ---------------------------------------------------------------- pipes
+
+@export_group("Pipes")
+## How wide a pipe's mouth is: how close the ball must come to be drawn in (px).
+@export_range(4.0, 400.0, 1.0) var pipes_mouth_radius: float = 60.0
+## The slowest a ball may travel through a pipe (px/s).
+##
+## **This is a floor, not a speed.** A pipe carries the speed the ball arrived with, so the shot
+## still matters and the preview stays honest -- but without a minimum, a ball that dribbles into
+## a mouth crawls to a halt somewhere inside, and in a game with no walking that is an
+## unrecoverable soft-lock with nothing on screen to explain it.
+@export_range(10.0, 4000.0, 10.0) var pipes_min_speed: float = 600.0
+## Fraction of the entry speed kept. 1 carries it through untouched; lower makes a pipe a cost.
+@export_range(0.0, 2.0, 0.01) var pipes_speed_keep: float = 1.0
 
 # ---------------------------------------------------------------- levers
 
@@ -360,7 +427,7 @@ extends Resource
 @export_range(0.0, 20.0, 0.05) var lever_angular_damping: float = 2.2
 ## A constant drag at the hinge, which brings a settling plank to a dead stop rather than letting
 ## it creep.
-@export_range(0.0, 2000.0, 1.0) var lever_pivot_friction: float = 40.0
+@export_range(0.0, 18000.0, 1.0) var lever_pivot_friction: float = 360.0
 ## A weight hung on the A end, holding that side down until something outweighs it.
 @export_range(-40.0, 40.0, 0.1) var lever_counterweight: float = 1.5
 ## How hard a landing kicks the plank, on top of the ball's standing weight.
@@ -389,8 +456,8 @@ extends Resource
 @export_range(0.0, 2.0, 0.01) var squishy_cable_bounce: float = 0.31
 @export_range(0.0, 2.0, 0.01) var rocky_cable_bounce: float = 0.04
 ## The height a rope throws each ball to when `cables.sustainBounce` is on, whatever the drop (px).
-@export_range(0.0, 600.0, 1.0) var squishy_sustained_cable_height: float = 150.0
-@export_range(0.0, 600.0, 1.0) var rocky_sustained_cable_height: float = 62.0
+@export_range(0.0, 1800.0, 1.0) var squishy_sustained_cable_height: float = 450.0
+@export_range(0.0, 1800.0, 1.0) var rocky_sustained_cable_height: float = 186.0
 
 # ---------------------------------------------------------------- helpers
 
@@ -419,19 +486,39 @@ static var active: TuningData = null
 static func get_active() -> TuningData:
 	if active == null:
 		active = TuningData.new()
-		active.load_phaser_json(PHASER_JSON_PATH)
 	return active
 
 
+# ---------------------------------------------------------------- the frozen Phaser export
+
+## The exported Phaser values, kept as history. **Not loaded on startup, and not a source to
+## re-import from.**
+##
+## It used to be loaded over the top of these defaults every time the game booted and every time
+## the tests called `get_active()`, which made it the real source of truth for all 171 fields
+## below -- the `@export` defaults were dead values that the Inspector displayed and nothing used.
+## Five of them had already drifted away from the JSON without any effect
+## (`slingshot_cradle_lift` among them, which is a physical number), and nobody noticed, because
+## nothing they affected could change.
+##
+## That was harmless while the port was being transcribed and the Phaser project was the
+## authority. It is not harmless now: the Phaser project is retired, this is the game, and an
+## edit to a number here has to be the edit that takes effect. A scale change made against these
+## defaults would have been silently discarded and every test would still have passed.
+##
+## So the defaults below are now the only source, and this file is archaeology. `load_phaser_json`
+## still works for a one-off comparison, and `tuning/save_default.gd` still uses it; neither runs
+## by itself.
 const PHASER_JSON_PATH: String = "res://tuning/phaser_tuning.json"
 
-## Phaser paths that have no field here, filled in by the last load. Reported in docs/PORTING.md
-## and printed once on startup, so a value that quietly failed to port is visible rather than
-## silently default.
+## Phaser paths that have no field here, filled in by the last load. Reported in docs/PORTING.md,
+## so a value that quietly failed to port is visible rather than silently default.
 var unmapped_keys: PackedStringArray = PackedStringArray()
 
 
 ## Overwrite these values from the exported Phaser JSON. Returns the keys that had nowhere to go.
+##
+## Only called deliberately now -- see PHASER_JSON_PATH above.
 func load_phaser_json(path: String) -> PackedStringArray:
 	unmapped_keys = PackedStringArray()
 	if not FileAccess.file_exists(path):

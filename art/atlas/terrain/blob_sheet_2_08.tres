@@ -1,0 +1,7 @@
+[gd_resource type="AtlasTexture" format=3]
+
+[ext_resource type="Texture2D" path="res://art/source/terrain/Blob Sheet 2.png" id="1_pguri"]
+
+[resource]
+atlas = ExtResource("1_pguri")
+region = Rect2(2927, 1060, 186, 982)

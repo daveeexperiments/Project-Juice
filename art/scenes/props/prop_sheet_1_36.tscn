@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://art/atlas/props/prop_sheet_1_36.tres" id="1_8d520"]
+
+[node name="prop_sheet_1_36" type="Node2D" unique_id=2106110703]
+scale = Vector2(0.288, 0.288)
+
+[node name="Art" type="Sprite2D" parent="." unique_id=777569229]
+position = Vector2(201.5, 207.5)
+texture = ExtResource("1_8d520")

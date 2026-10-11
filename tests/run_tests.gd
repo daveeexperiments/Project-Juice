@@ -57,6 +57,10 @@ func _initialize() -> void:
 
 	print("\n spikes and respawn")
 	_test_spikes_every_side()
+	_test_disc_hazard()
+	_test_pipes()
+	_test_piece_roles()
+	_test_not_stranded()
 	_test_spike_sweep_at_speed()
 	_test_respawn_uses_latest_flag()
 
@@ -169,9 +173,13 @@ func _test_glass_modes(world: StepWorld) -> void:
 		"ground %s" % SurfaceKind.to_name(r["ground"] as int))
 
 	# Hard hits only: a gentle drop does not break it, a fast one does.
-	r = _drop_rocky(world, form, pane, GlassRules.MODE_HARD, 120.0)
+	#
+	# These two speeds are the only ones here that mean anything: they have to straddle
+	# `glass.hardBreakSpeed`, so they move with it when the world is scaled. The drops above pass
+	# any speed at all, because those modes never consult it.
+	r = _drop_rocky(world, form, pane, GlassRules.MODE_HARD, 360.0)
 	var gentle_held: bool = not (r["broke"] as bool)
-	r = _drop_rocky(world, form, pane, GlassRules.MODE_HARD, 1200.0)
+	r = _drop_rocky(world, form, pane, GlassRules.MODE_HARD, 3600.0)
 	_check("hard hits only: gentle holds, fast breaks",
 		gentle_held and (r["broke"] as bool), "break speed %.0f" % TuningData.get_active().glass_hard_break_speed)
 
@@ -254,6 +262,210 @@ func _test_spikes_every_side() -> void:
 
 	var clear: bool = not strip.touches(500.0, 500.0 - 10.0 - r * 3.0, r)
 	_check("spikes do not bite from well clear", clear, "3 radii in front is safe")
+
+
+## Nowhere the level can put you is a dead end: the anti-stranding rules.
+func _test_not_stranded() -> void:
+	var t: TuningData = TuningData.get_active()
+	var form: BallForm = BallForm.make(BallForm.SQUISHY)
+	var world: StepWorld = _plain_room()
+
+	# A floor to hover over. _plain_room's own floor serves; find where its top is by dropping.
+	var resting: BallState = BallState.new()
+	resting.x = 500.0
+	resting.y = 200.0
+	for _i: int in 600:
+		BallSim.step_ball(resting, form, world, t.fixed_delta(), null)
+	var floor_y: float = resting.y
+
+	# Stopped dead a little clear of the floor -- further than the support probe reaches, closer
+	# than the hover reach. The ordinary probe sees nothing here.
+	var hovering: BallState = BallState.new()
+	hovering.x = 500.0
+	hovering.y = floor_y - t.grounded_hover_reach * 0.6
+	_check("a ball stopped just above a floor can still launch",
+		BallSim.hovering_support(hovering, form, world),
+		"%.0f px clear, reach %.0f" % [floor_y - hovering.y, t.grounded_hover_reach])
+
+	# Moving at speed over the same spot is NOT standing on it.
+	var passing: BallState = BallState.new()
+	passing.x = hovering.x
+	passing.y = hovering.y
+	passing.vx = t.world_rest_max_speed * 4.0
+	_check("but not while it is still travelling",
+		not BallSim.hovering_support(passing, form, world),
+		"%.0f px/s is above restMaxSpeed %.0f" % [passing.vx, t.world_rest_max_speed])
+
+	# The exploit this has to avoid: velocity passes through zero at the apex of every vertical
+	# shot. Without the surface test that would be a free second launch, in mid-air, for ever.
+	var apex: BallState = BallState.new()
+	apex.x = 500.0
+	apex.y = floor_y - t.grounded_hover_reach * 20.0
+	_check("the apex of a vertical shot is not a floor",
+		not BallSim.hovering_support(apex, form, world),
+		"stationary but %.0f px up" % (floor_y - apex.y))
+
+	# The broad rule -- a ball that has simply STOPPED can shoot -- is a DURATION, not a speed, and
+	# this is what buys that. Fire straight up and measure how long the ball actually reads as
+	# barely moving on the way over the top. If that ever grows past `grounded.restTime`, the rule
+	# starts handing out free launches in mid-air and this fails before a player finds it.
+	var rising: BallState = BallState.new()
+	rising.x = 500.0
+	rising.y = floor_y
+	rising.vy = -form.max_launch_speed
+	var dt: float = t.fixed_delta()
+	var longest: float = 0.0
+	var run: float = 0.0
+	for _i: int in 600:
+		BallSim.step_ball(rising, form, world, dt, null)
+		if rising.y >= floor_y - 1.0:
+			break  # back on the floor; stop before resting stillness is counted
+		run = run + dt if BallSim.is_barely_moving(rising) else 0.0
+		longest = maxf(longest, run)
+	_check(
+		"an apex never lasts long enough to count as at rest",
+		longest < t.grounded_rest_time,
+		"apex reads still for %.3fs, rule needs %.2fs" % [longest, t.grounded_rest_time],
+	)
+
+
+## A piece's role decides what the importer builds for it.
+func _test_piece_roles() -> void:
+	_check("a plain piece is wall",
+		PieceImporter.surface_material_for(PieceEntry.Role.PLAIN) == 0,
+		"surface_material 0")
+	_check("a breakable piece is glass",
+		PieceImporter.surface_material_for(PieceEntry.Role.BREAKABLE) == 1,
+		"surface_material 1, which carries broken / respawn_seconds / rocky_breaks")
+	# A hazard is still solid in its own right: the deadly disc is a separate child, not a
+	# replacement for the collision. Marking it glass as well would make blades smashable.
+	_check("a hazard keeps its ordinary surface",
+		PieceImporter.surface_material_for(PieceEntry.Role.HAZARD) == 0,
+		"surface_material 0")
+
+
+## Pipes: the ball goes in one end and comes out the other.
+func _test_pipes() -> void:
+	var t: TuningData = TuningData.get_active()
+	var form: BallForm = BallForm.make(BallForm.SQUISHY)
+
+	# An L-shaped run: in at the top, down, then along to the right.
+	var world: StepWorld = StepWorld.new()
+	var pipe: Pipe = Pipe.make(1, PackedVector2Array([
+		Vector2(500.0, 400.0), Vector2(500.0, 900.0), Vector2(1100.0, 900.0),
+	]), 60.0)
+	world.pipes.append(pipe)
+
+	var state: BallState = BallState.new()
+	state.x = 500.0
+	state.y = 380.0
+	state.vy = 900.0
+	var dt: float = t.fixed_delta()
+
+	var took_it: bool = false
+	var exited_at: Vector2 = Vector2.ZERO
+	var exit_velocity: Vector2 = Vector2.ZERO
+	for _i: int in 600:
+		BallSim.step_ball(state, form, world, dt, null)
+		if state.pipe_id >= 0:
+			took_it = true
+		elif took_it:
+			exited_at = Vector2(state.x, state.y)
+			exit_velocity = Vector2(state.vx, state.vy)
+			break
+
+	_check("a ball entering a mouth is taken into the pipe", took_it,
+		"entered the run at the near end")
+	_check("and comes out of the far end", exited_at.distance_to(Vector2(1100.0, 900.0)) < 2.0,
+		"left at %s, far mouth is (1100, 900)" % exited_at)
+	_check("travelling the way the pipe points", exit_velocity.normalized().dot(Vector2.RIGHT) > 0.99,
+		"leaves heading %s" % exit_velocity.normalized())
+
+	# The floor. Without it a ball that dribbles in crawls to a halt somewhere inside, cannot
+	# launch and cannot walk out -- an unrecoverable soft-lock with nothing on screen to explain it.
+	var crawler: BallState = BallState.new()
+	crawler.x = 500.0
+	crawler.y = 380.0
+	crawler.vy = 1.0
+	BallSim.step_ball(crawler, form, world, dt, null)
+	_check("a barely-moving ball is still carried through",
+		crawler.pipe_id >= 0 and crawler.pipe_speed >= t.pipes_min_speed,
+		"carried at %.0f px/s, floor is %.0f" % [crawler.pipe_speed, t.pipes_min_speed])
+
+	# A mouth must not swallow the ball it just ejected.
+	_check("a mouth does not re-take a ball leaving it",
+		pipe.entry_for(1100.0, 900.0, 400.0, 0.0) < 0.0,
+		"outward velocity at the far mouth is not an entry")
+
+	# And the point of the whole design: the ghost copies a BallState, so transit comes with it.
+	var ghost: BallState = BallState.new()
+	ghost.x = 500.0
+	ghost.y = 380.0
+	ghost.vy = 900.0
+	var real: BallState = BallState.new()
+	real.copy_from(ghost)
+	var worst: float = 0.0
+	for _i: int in 240:
+		BallSim.step_ball(real, form, world, dt, null)
+		BallSim.step_ball(ghost, form, world.ghost(), dt, null)
+		worst = maxf(worst, Vector2(real.x, real.y).distance_to(Vector2(ghost.x, ghost.y)))
+	_check("a prediction through a pipe matches the real path",
+		worst < TOLERANCE,
+		"worst divergence %.6f px" % worst)
+
+
+## A disc hazard: a saw blade or a spiked gear, deadly all the way round.
+func _test_disc_hazard() -> void:
+	var blade: SpikeStrip = SpikeStrip.make_disc(1, Vector2(500.0, 500.0), 120.0)
+	var r: float = TuningData.get_active().squishy_radius
+
+	var missed: PackedStringArray = PackedStringArray()
+	for degrees: int in [0, 45, 90, 135, 180, 225, 270, 315]:
+		var d: Vector2 = Vector2(cos(deg_to_rad(float(degrees))), sin(deg_to_rad(float(degrees))))
+		var just_touching: Vector2 = Vector2(500.0, 500.0) + d * (120.0 + r * 0.8)
+		if not blade.touches(just_touching.x, just_touching.y, r):
+			missed.append("%d deg" % degrees)
+	_check("a blade bites all the way round", missed.is_empty(),
+		"missed: %s" % (", ".join(missed) if not missed.is_empty() else "nothing"))
+
+	_check("a blade does not bite from clear",
+		not blade.touches(500.0 + 120.0 + r * 3.0, 500.0, r),
+		"three radii out is safe")
+
+	# The ordering the whole design rests on: the deadly disc has to be the LARGER of the two, or
+	# the piece's own collision fences the ball away from the region that kills it. Rather than
+	# assert the numbers by hand, take them from a real piece the way the importer does.
+	# The SQUARE case is the one that matters. A gear is very nearly square, so its two half-extents
+	# are nearly equal, and on an exactly square piece they are identical -- which would leave a
+	# resting ball exactly on the boundary, where `touches` uses a strict less-than, and the blade
+	# would never bite. Both shapes are checked, because only the square one can fail.
+	var short: PackedStringArray = PackedStringArray()
+	for size: Vector2i in [Vector2i(403, 415), Vector2i(400, 400), Vector2i(750, 758)]:
+		var gear: PieceEntry = PieceEntry.new()
+		gear.region = Rect2i(Vector2i.ZERO, size)
+		gear.role = PieceEntry.Role.HAZARD
+		var deadly: float = gear.effective_hazard_radius()
+		var solid: float = gear.effective_radius()
+		# A ball resting on the solid disc has to be inside the deadly one, by more than the
+		# sub-pixel slack the push-out pass leaves behind.
+		if deadly - solid < 1.0:
+			short.append("%dx%d (%.1f vs %.1f)" % [size.x, size.y, deadly, solid])
+	_check("a hazard always reaches past the collision it sits on", short.is_empty(),
+		"too tight: %s" % (", ".join(short) if not short.is_empty() else "none"))
+
+	# A disc carries no slab, so the level registers no second solid on top of the piece's own.
+	_check("a disc hazard has no solid body of its own",
+		blade.corners().is_empty() and blade.is_disc(),
+		"corners: %d" % blade.corners().size())
+
+	# Same swept check as a strip: a fast ball must not pass through a blade between two steps.
+	var before: Vector2 = Vector2(500.0, 500.0 - 400.0)
+	var after: Vector2 = Vector2(500.0, 500.0 + 400.0)
+	_check("a blade catches a ball that crosses it in one step",
+		not blade.touches(before.x, before.y, r)
+			and not blade.touches(after.x, after.y, r)
+			and blade.sweep(before.x, before.y, after.x, after.y, r),
+		"800px step across a 240px blade")
 
 
 func _test_spike_sweep_at_speed() -> void:
@@ -460,7 +672,12 @@ func _test_levers() -> void:
 ## A room with one plank pivoted in the middle of it, at the block's own default tilt limit.
 func _lever_world() -> StepWorld:
 	var world: StepWorld = _plain_room()
-	world.levers.append(Lever.new(1, Vector2(500.0, 700.0), 90.0, 6.0, 25.0))
+	# The plank's LENGTH is in world units, so it scales with the tuning. It has to: torque goes as
+	# gravity x arm and inertia as mass x arm squared, so a plank left at its old length under
+	# tripled gravity gets three times the angular acceleration and slams its stop under either
+	# ball -- which is exactly how this check failed when the world was scaled. The tilt limit is
+	# in DEGREES and stays put.
+	world.levers.append(Lever.new(1, Vector2(500.0, 700.0), 270.0, 18.0, 25.0))
 	return world
 
 
@@ -480,7 +697,9 @@ func _drop_on_raised_end(world: StepWorld, form: BallForm, rest: float) -> float
 	var a: Vector2 = lever.end_a()
 	var b: Vector2 = lever.end_b()
 	var raised: Vector2 = a if a.y < b.y else b
-	_run_from(world, form, Vector2(raised.x, raised.y - 60.0), Vector2.ZERO, 3.0)
+	# Two ball-diameters above the end: the drop height sets the impact speed, which is half of
+	# what the counterweight is being weighed against.
+	_run_from(world, form, Vector2(raised.x, raised.y - 180.0), Vector2.ZERO, 3.0)
 	return lever.angle
 
 
@@ -848,11 +1067,14 @@ func _test_fans() -> void:
 
 	# A fan makes up the shortfall and nothing more, so flying a fast shot through one is free.
 	var slow: Vector2 = fan.accel_for(start.x, start.y, 0.0, 0.0, squishy, world)
-	var already_fast: Vector2 = fan.accel_for(start.x, start.y, 0.0, -900.0, squishy, world)
+	# The probe speed has to sit ABOVE `fans.targetSpeed`, which is the whole point of the check, so
+	# it scales with the tuning rather than staying at an absolute figure.
+	var fast_enough: float = TuningData.get_active().fans_target_speed * 2.0
+	var already_fast: Vector2 = fan.accel_for(start.x, start.y, 0.0, -fast_enough, squishy, world)
 	_check(
 		"a fan pushes a slow ball and never brakes a fast one",
 		slow.length() > 0.0 and already_fast == Vector2.ZERO,
-		"%.0f px/s^2 at rest, %.0f at 900 px/s up" % [slow.length(), already_fast.length()],
+		"%.0f px/s^2 at rest, %.0f at %.0f px/s up" % [slow.length(), already_fast.length(), fast_enough],
 	)
 
 	# Outside the mouth and behind it there is no stream at all.
@@ -1295,9 +1517,20 @@ func _build_test_world() -> StepWorld:
 	return world
 
 
+## Write the list of Phaser values this port never found a home for.
+##
+## This asks a THROWAWAY TuningData to read the frozen export, rather than reading
+## `get_active().unmapped_keys`. That used to work only as a side effect: `get_active()` loaded the
+## JSON over the live values on first use, and the list fell out of it. Now that nothing loads the
+## JSON on its own -- the authored defaults are the only source -- reading the live instance would
+## report zero unmapped keys and overwrite this document with an empty file, which reads as "all
+## ported" when it means "never asked".
+##
+## The throwaway instance also keeps the report honest in the other direction: it cannot disturb
+## the values the tests above just ran against.
 func _report_unmapped() -> void:
-	var t: TuningData = TuningData.get_active()
-	var keys: PackedStringArray = t.unmapped_keys.duplicate()
+	var probe: TuningData = TuningData.new()
+	var keys: PackedStringArray = probe.load_phaser_json(TuningData.PHASER_JSON_PATH).duplicate()
 	keys.sort()
 	var file: FileAccess = FileAccess.open("res://docs/unmapped_tuning_keys.txt", FileAccess.WRITE)
 	if file != null:

@@ -14,6 +14,9 @@ var shapes: Array[ShapeBody] = []
 var spikes: Array[SpikeStrip] = []
 ## Columns of moving air. Stateless, so the prediction shares them rather than copying.
 var fans: Array[FanField] = []
+
+## Pipes the ball travels inside. Immutable, like fans and spikes -- see `core/pipe.gd`.
+var pipes: Array[Pipe] = []
 ## Slack ropes. These MOVE, so the prediction gets copies -- see `ghost()`.
 var cables: Array[Cable] = []
 ## Planks on pivots. These move too, and for the same reason get copied.
@@ -39,6 +42,9 @@ func ghost() -> StepWorld:
 	copy.shapes = shapes
 	copy.spikes = spikes
 	copy.fans = fans
+	# Shared, not copied: a pipe holds no state the ball can change, so there is nothing to
+	# disturb. The transit state is on the BallState the preview already copies.
+	copy.pipes = pipes
 	copy.time = time
 	copy.predicted_broken = {}
 	copy.cables = []

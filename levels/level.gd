@@ -62,6 +62,9 @@ func _build_world() -> void:
 		var block: TerrainBlock = node as TerrainBlock
 		if block == null or block.polygon.size() < 3:
 			continue
+		# A placement switched off is scenery: it keeps its art and never reaches the simulation.
+		if not block.collides:
+			continue
 		var shape: ShapeBody = block.build_shape(next_id)
 		world.shapes.append(shape)
 		_block_of[next_id] = block
@@ -74,9 +77,15 @@ func _build_world() -> void:
 		var strip: SpikeStrip = block.build_strip(next_id)
 		world.spikes.append(strip)
 		# ...and its solid body, so the airflow, the prediction and the route check see a wall.
-		var slab: ShapeBody = ShapeBody.new(next_id + 100000, strip.corners(), SurfaceKind.WALL, 0.0)
-		slab.spike_base = true
-		world.shapes.append(slab)
+		#
+		# A DISC hazard has no corners and gets no slab: it sits on a piece that already carries
+		# its own collision, and that collision is deliberately the smaller circle. Adding a slab
+		# here would put a second solid in the same place as the first.
+		var outline: PackedVector2Array = strip.corners()
+		if outline.size() >= 3:
+			var slab: ShapeBody = ShapeBody.new(next_id + 100000, outline, SurfaceKind.WALL, 0.0)
+			slab.spike_base = true
+			world.shapes.append(slab)
 		next_id += 1
 
 	for node: Node in get_tree().get_nodes_in_group(&"cables"):
@@ -84,6 +93,13 @@ func _build_world() -> void:
 		if block == null:
 			continue
 		world.cables.append(block.build_cable(next_id))
+		next_id += 1
+
+	for node: Node in get_tree().get_nodes_in_group(&"pipes"):
+		var block: PipeBlock = node as PipeBlock
+		if block == null or block.polygon.size() < 2:
+			continue
+		world.pipes.append(block.build_pipe(next_id))
 		next_id += 1
 
 	for node: Node in get_tree().get_nodes_in_group(&"fans"):

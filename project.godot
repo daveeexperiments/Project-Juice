@@ -12,7 +12,7 @@ config_version=5
 
 config/name="Project Juice"
 config/description="Vertical-shaft precision platformer. Godot port of the Phaser prototype."
-run/main_scene="res://levels/test_room.tscn"
+run/main_scene="res://levels/beat_01.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
@@ -27,8 +27,8 @@ gdscript/warnings/untyped_declaration=1
 
 [display]
 
-window/size/viewport_width=540
-window/size/viewport_height=960
+window/size/viewport_width=1920
+window/size/viewport_height=1080
 window/stretch/mode="canvas_items"
 
 [input]

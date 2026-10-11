@@ -1,0 +1,7 @@
+[gd_resource type="AtlasTexture" format=3]
+
+[ext_resource type="Texture2D" path="res://art/source/props/Prop Sheet 1.png" id="1_rimal"]
+
+[resource]
+atlas = ExtResource("1_rimal")
+region = Rect2(558, 1993, 119, 71)

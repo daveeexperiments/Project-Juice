@@ -30,6 +30,14 @@ var air_time: float = 0.0
 ## Seconds since the ball was last standing on something it could launch from. Ported from
 ## LaunchLimiter.sinceGrounded, which is what gives Grounded mode its coyote window.
 var since_launchable: float = INF
+
+## How long the ball has been moving too slowly to notice, in seconds.
+##
+## A DURATION rather than a speed, and that distinction is the whole rule. Velocity passes through
+## zero at the apex of every vertical shot, so "is it slow right now" would hand out a free second
+## launch in mid-air, repeatable for ever. A ball that *looks* stationary is one that stays
+## stationary for a moment; an apex does not, because gravity is already pulling it back through.
+var still_time: float = 0.0
 ## What stops the player launching for ever: charges, heat or a tiring band, depending on the
 ## mode. It never moves the ball, so it lives beside the simulation rather than inside it.
 var limiter: LaunchLimiter = LaunchLimiter.new()
@@ -55,6 +63,7 @@ func setup(world: StepWorld, start: Vector2) -> void:
 	state.ground_material = SurfaceKind.NONE
 	state.settle_hops = 0
 	since_launchable = INF
+	still_time = 0.0
 	air_time = 0.0
 	# A death must never leave the player stranded with an empty budget.
 	limiter.reset()
@@ -72,6 +81,8 @@ func step(dt: float) -> void:
 		return
 	BallSim.step_ball(state, form, _world, dt, _policy)
 	air_time = 0.0 if grounded else air_time + dt
+	# Before `since_launchable`, which asks whether the ball is still and therefore reads this.
+	still_time = still_time + dt if BallSim.is_barely_moving(state) else 0.0
 	since_launchable = 0.0 if on_launchable_ground else since_launchable + dt
 	limiter.tick(dt, state.ground_material, form)
 
@@ -105,10 +116,24 @@ var on_launchable_ground: bool:
 			return true
 		if state.ground_material != SurfaceKind.NONE:
 			return BallSim.is_horizontal_surface(state.ground_ny)
+		if _world == null:
+			return false
 		# An upward stream counts as something to stand on, when `grounded.launchFromFan` says so.
 		# Without it a squishy ball hovering in a fan would have no shot available and no way down
-		# but to drift out -- held up by the level and stuck in it at the same time.
-		return _world != null and BallSim.fan_support(state, form, _world)
+		# but to drift out -- held up by the level and stuck in it at the same time. Anywhere the
+		# stream would push a stationary ball counts, so its taper and its edges are included, not
+		# just the core.
+		if BallSim.fan_support(state, form, _world):
+			return true
+		# ...and so does having stopped dead just above something flat. Same reasoning as the fan:
+		# the player is somewhere the level put them, and no shot from there is a dead end.
+		if BallSim.hovering_support(state, form, _world):
+			return true
+		# The last word, and the broadest: a ball that has simply STOPPED can shoot, whatever it
+		# has or has not come to rest against. Wedged between two blobs, balanced on a tooth,
+		# hanging in a dying stream -- the player cannot tell any of those apart from standing, and
+		# none of them should be where the run ends.
+		return still_time >= maxf(0.0, TuningData.get_active().grounded_rest_time)
 
 
 ## True while Grounded mode would let a shot go: on launchable ground, or inside the coyote
@@ -140,6 +165,7 @@ func launch(vx: float, vy: float, power: float = 1.0) -> void:
 	held = false
 	air_time = INF
 	since_launchable = INF  # A launch uses up the coyote grace, so one shot cannot become two.
+	still_time = 0.0  # ...and so does the stillness, for the same reason.
 	state.vx = vx
 	state.vy = vy
 	state.ground_material = SurfaceKind.NONE

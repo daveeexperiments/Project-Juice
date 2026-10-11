@@ -39,6 +39,45 @@ const PAD_COILS: int = 9
 		smoothing = value
 		queue_redraw()
 
+## How fast this piece's art turns, in degrees per second. 0 is still.
+##
+## **Visual only, and that is the point.** It spins the `Art` child and never the collision, which
+## stays the circle the manifest chose. A gear that only kills does not need to turn in the
+## simulation at all: the hazard disc under it is static, so `StepWorld.ghost()` can share it
+## instead of copying it, and the trajectory preview costs nothing. Only a gear the ball is meant
+## to RIDE needs real rotation, and that is a different system -- surface velocity at the contact
+## point, like the lever.
+##
+## Per placement rather than per piece, because two copies of the same gear should be able to turn
+## at different speeds, or in opposite directions.
+@export_range(-720.0, 720.0, 5.0) var spin_degrees_per_second: float = 0.0
+
+## Whether THIS placement reaches the simulation. Off makes it scenery.
+##
+## The piece's `kind` in the manifest decides what a gear collides AS, and that is a property of
+## the piece -- change it once and every copy in every level follows. Whether a particular copy
+## collides at all is a different question, and it belongs here, because it is a property of where
+## the thing was put: the same gear is machinery in one beat and background in another.
+##
+## Without this the only way to make one instance decorative would be to change the piece globally
+## or delete its collision by hand, and the second would be lost the next time the importer ran.
+@export var collides: bool = true
+
+## Draw the placeholder ink look. Off for a block that carries real art.
+##
+## The greybox drawing and the collision outline are the same polygon, which is what makes a
+## greybox honest -- what you see is exactly what you hit. A piece imported from the sheets has a
+## sprite instead, and its collision is deliberately NOT the drawn silhouette: a gear is a disc.
+## Drawing the ink under the sprite would paint the collision shape over the art and make every
+## imported gear look like a black circle.
+##
+## It stays a block rather than a bare Sprite2D so that collision, the route check, the editor
+## gizmo and the debug overlay all keep working unchanged.
+@export var show_placeholder: bool = true:
+	set(value):
+		show_placeholder = value
+		queue_redraw()
+
 @export_group("Glass only")
 ## What the rocky ball does to THIS piece. Default follows the global Rocky vs glass mode.
 @export_enum("Default:-1", "Break obstructions only:0", "Always break:1", "Hard hits only:2", "Never break:3", "Pass through:4")
@@ -63,11 +102,19 @@ func _ready() -> void:
 	queue_redraw()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	# In the editor only, redraw while the points are being dragged. `polygon` is inherited, so
 	# there is no setter to hook -- watching it here is the simplest honest way to stay current.
 	if Engine.is_editor_hint():
 		queue_redraw()
+
+	if is_zero_approx(spin_degrees_per_second):
+		return
+	# Turns the ART, never this node: rotating the block would rotate its polygon, and the
+	# collision a spinning gear presents must not change as it turns.
+	var art: Node2D = get_node_or_null(^"Art") as Node2D
+	if art != null:
+		art.rotation += deg_to_rad(spin_degrees_per_second) * delta
 
 
 ## The collision body for this block, in WORLD space. The level asks for this once on load.
@@ -99,13 +146,14 @@ func _draw() -> void:
 	if polygon.size() < 3:
 		return
 	var outline: PackedVector2Array = ShapeBody.smooth_closed_polygon(polygon, smoothing)
-	match surface_material:
-		1:
-			_draw_glass(outline)
-		2:
-			_draw_pad(outline)
-		_:
-			draw_colored_polygon(outline, INK)
+	if show_placeholder:
+		match surface_material:
+			1:
+				_draw_glass(outline)
+			2:
+				_draw_pad(outline)
+			_:
+				draw_colored_polygon(outline, INK)
 
 	# With smoothing on, the handles sit on the drawn points while the ball hits the curve. Show
 	# the straight outline faintly in the editor so the two are never confused.

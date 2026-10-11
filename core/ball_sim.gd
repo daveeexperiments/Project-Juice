@@ -37,6 +37,19 @@ static func step_ball(state: BallState, form: BallForm, world: StepWorld, dt: fl
 	_step_cables(world, dt)
 	_step_levers(world, dt)
 
+	# A ball in a pipe is on a rail: no gravity, no drag, no contacts. The branch sits AFTER the
+	# moving actors so the rest of the world keeps running while the ball is inside -- ropes still
+	# swing, planks still settle -- and the ghost sees the same thing, because it runs this same
+	# code from the same state.
+	if state.pipe_id >= 0:
+		_advance_in_pipe(state, world, dt)
+		return true
+
+	var entered: Pipe = _pipe_taking(state, world)
+	if entered != null:
+		_enter_pipe(state, entered)
+		return true
+
 	# Moving air next, so it is part of the same forces phase as gravity and the two can cancel:
 	# a squishy ball in an upward stream hovers because the push and the weight land in the same
 	# step, not because anything special-cases hovering.
@@ -266,6 +279,43 @@ static func fan_support(state: BallState, form: BallForm, world: StepWorld) -> b
 		if fan.is_launchable_stream(state.x, state.y, form, world):
 			return true
 	return false
+
+
+## Is the ball sitting still, just above something it could stand on?
+##
+## The support probe reaches `world.edgeSupportMargin` -- a few pixels -- because that is the right
+## reach for deciding what the ball is *resting on*. It is the wrong reach for deciding whether a
+## player is stranded. A ball can come to a dead stop a little clear of a surface: wedged in a dip
+## whose normal is too steep to count, settled on a curve where the probe passes beside the
+## contact, or held just off a ledge. None of those is airborne in any sense the player would
+## recognise, and in a game with no walking a shot that will not fire there is the end of the run.
+##
+## So: near-stationary AND something flat within reach below. Both halves matter. Speed alone would
+## hand a free shot to the apex of every vertical launch, where velocity passes through zero;
+## requiring a surface within a ball's reach below means the only place it triggers is one the
+## player would call standing.
+##
+## The speed test reuses `world.restMaxSpeed`, which is already this project's definition of "slow
+## enough to count as resting", rather than inventing a second number that would drift from it.
+## Is the ball moving too slowly to notice?
+##
+## One definition, used by both anti-stranding rules, so they cannot drift apart. It reuses
+## `world.restMaxSpeed` -- already this project's answer to "slow enough to count as resting" --
+## rather than inventing a second number beside it.
+static func is_barely_moving(state: BallState) -> bool:
+	var limit: float = TuningData.get_active().world_rest_max_speed
+	return state.vx * state.vx + state.vy * state.vy <= limit * limit
+
+
+static func hovering_support(state: BallState, form: BallForm, world: StepWorld) -> bool:
+	var t: TuningData = TuningData.get_active()
+	var reach: float = maxf(0.0, t.grounded_hover_reach)
+	if reach <= 0.0:
+		return false
+	if not is_barely_moving(state):
+		return false
+	var found: Array = ground_under(state, form, world, reach)
+	return not found.is_empty() and is_horizontal_surface(found[1] as float)
 
 
 # ---------------------------------------------------------------- levers
@@ -737,8 +787,8 @@ static func _reset_settle_when_airborne(state: BallState, form: BallForm) -> voi
 
 
 ## What is under the ball, and how flat it is. Returns [material, ny].
-static func ground_under(state: BallState, form: BallForm, world: StepWorld) -> Array:
-	var probe_y: float = state.y + TuningData.get_active().world_edge_support_margin + 1.0
+static func ground_under(state: BallState, form: BallForm, world: StepWorld, extra_reach: float = 0.0) -> Array:
+	var probe_y: float = state.y + TuningData.get_active().world_edge_support_margin + 1.0 + maxf(0.0, extra_reach)
 	for shape: ShapeBody in world.shapes:
 		if not world.is_shape_solid(shape) or not GlassRules.is_solid_for(shape, form):
 			continue
@@ -835,3 +885,92 @@ static func _approach(current: float, target: float, max_delta: float) -> float:
 	if current < target:
 		return minf(current + max_delta, target)
 	return maxf(current - max_delta, target)
+
+
+# ---------------------------------------------------------------- pipes
+
+## The pipe this ball is being drawn into, or null.
+static func _pipe_taking(state: BallState, world: StepWorld) -> Pipe:
+	for pipe: Pipe in world.pipes:
+		if pipe.entry_for(state.x, state.y, state.vx, state.vy) >= 0.0:
+			return pipe
+	return null
+
+
+## Take the ball onto the rail.
+##
+## The speed carried in is the speed it arrived with, so a hard shot comes out hard and the
+## preview stays honest about it -- but never below `pipes.minSpeed`, because a ball that crawls
+## to a halt inside a pipe cannot launch and cannot walk out.
+static func _enter_pipe(state: BallState, pipe: Pipe) -> void:
+	var t: TuningData = TuningData.get_active()
+	var at: float = pipe.entry_for(state.x, state.y, state.vx, state.vy)
+	var speed: float = Vector2(state.vx, state.vy).length() * maxf(0.0, t.pipes_speed_keep)
+
+	state.pipe_id = pipe.id
+	state.pipe_distance = at
+	state.pipe_heading = 1.0 if at <= 0.0 else -1.0
+	state.pipe_speed = maxf(speed, t.pipes_min_speed)
+
+	var where: Vector2 = pipe.point_at(at)
+	state.x = where.x
+	state.y = where.y
+	# Nothing is supporting it, and a stale ground material would give it friction and a launch it
+	# should not have while it is inside.
+	state.ground_material = SurfaceKind.NONE
+	state.settle_hops = 0
+	state.pending_lift = 0.0
+
+
+## Carry the ball along, and put it out of whichever end it reaches.
+static func _advance_in_pipe(state: BallState, world: StepWorld, dt: float) -> void:
+	var pipe: Pipe = _pipe_by_id(world, state.pipe_id)
+	if pipe == null or not pipe.is_usable():
+		# The pipe is gone from under it -- let it fall rather than freeze in mid-air.
+		_leave_pipe(state, Vector2.DOWN, 0.0)
+		return
+
+	state.pipe_distance += state.pipe_speed * state.pipe_heading * dt
+
+	if state.pipe_distance <= 0.0 or state.pipe_distance >= pipe.length():
+		var end: float = 0.0 if state.pipe_distance <= 0.0 else pipe.length()
+		var out: Vector2 = pipe.point_at(end)
+		state.x = out.x
+		state.y = out.y
+		# Leaving along the pipe, in the direction of travel. `direction_at` always points towards
+		# the far end, so a ball going backwards leaves against it.
+		_leave_pipe(state, pipe.direction_at(end) * state.pipe_heading, state.pipe_speed)
+		return
+
+	var here: Vector2 = pipe.point_at(state.pipe_distance)
+	state.x = here.x
+	state.y = here.y
+	# Kept in step with the rail so anything reading velocity -- the camera, the visuals, the
+	# aim -- sees the ball moving the way it looks like it is moving.
+	var heading: Vector2 = pipe.direction_at(state.pipe_distance) * state.pipe_heading
+	state.vx = heading.x * state.pipe_speed
+	state.vy = heading.y * state.pipe_speed
+	state.spin += state.pipe_speed / maxf(1.0, _radius_of(state)) * dt
+
+
+static func _leave_pipe(state: BallState, heading: Vector2, speed: float) -> void:
+	var out: Vector2 = heading.normalized() if heading.length_squared() > 0.0 else Vector2.DOWN
+	state.vx = out.x * speed
+	state.vy = out.y * speed
+	state.pipe_id = -1
+	state.pipe_distance = 0.0
+	state.pipe_heading = 1.0
+	state.pipe_speed = 0.0
+
+
+static func _pipe_by_id(world: StepWorld, pipe_id: int) -> Pipe:
+	for pipe: Pipe in world.pipes:
+		if pipe.id == pipe_id:
+			return pipe
+	return null
+
+
+## The rolling radius for spin while in transit. The form is not passed this far down, and the two
+## forms are the same circle, so either serves.
+static func _radius_of(_state: BallState) -> float:
+	return maxf(1.0, TuningData.get_active().squishy_radius)

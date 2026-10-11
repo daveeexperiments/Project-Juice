@@ -1,0 +1,203 @@
+[gd_scene format=3 uid="uid://baxg0dybooxgf"]
+
+[ext_resource type="Script" uid="uid://bqliqq328r3ch" path="res://levels/level.gd" id="1_level"]
+[ext_resource type="Script" uid="uid://bgi5hh35gllt5" path="res://ball/ball.gd" id="2_ball"]
+[ext_resource type="PackedScene" path="res://art/scenes/terrain/blob_sheet_1_01.tscn" id="3_k41hd"]
+[ext_resource type="Script" uid="uid://c64ji3wuilyxh" path="res://slingshot/slingshot.gd" id="3_sling"]
+[ext_resource type="PackedScene" path="res://art/scenes/terrain/blob_sheet_1_06.tscn" id="3_vuiy4"]
+[ext_resource type="Script" uid="uid://c520mbhbjptw3" path="res://prediction/trajectory_preview.gd" id="4_preview"]
+[ext_resource type="Script" uid="uid://c5j6caclalhr8" path="res://camera/follow_camera.gd" id="5_camera"]
+[ext_resource type="Script" uid="uid://k0umov46tnfk" path="res://debug/debug_overlay.gd" id="6_debug"]
+[ext_resource type="PackedScene" path="res://art/scenes/props/prop_sheet_1_13.tscn" id="6_xuokj"]
+[ext_resource type="Script" uid="uid://b1icbvrghjd5t" path="res://levels/shatter_effect.gd" id="7_shatter"]
+[ext_resource type="PackedScene" uid="uid://cso3faqf3ndna" path="res://blocks/Spawn.tscn" id="8_spawn"]
+[ext_resource type="PackedScene" uid="uid://cl3t33em4ori1" path="res://blocks/Flag.tscn" id="9_flag"]
+[ext_resource type="PackedScene" path="res://art/scenes/props/prop_sheet_1_46.tscn" id="12_stack"]
+[ext_resource type="PackedScene" path="res://art/scenes/props/prop_sheet_1_14.tscn" id="13_bats7"]
+[ext_resource type="PackedScene" path="res://art/scenes/props/prop_sheet_1_26.tscn" id="13_gear_a"]
+[ext_resource type="PackedScene" path="res://art/scenes/props/prop_sheet_1_11.tscn" id="14_gear_b"]
+[ext_resource type="PackedScene" path="res://art/scenes/terrain/blob_sheet_1_03.tscn" id="18_q0kt6"]
+[ext_resource type="PackedScene" path="res://art/scenes/terrain/blob_sheet_1_09.tscn" id="19_k5vw7"]
+[ext_resource type="PackedScene" path="res://art/scenes/props/prop_sheet_1_17.tscn" id="20_k5vw7"]
+[ext_resource type="PackedScene" path="res://art/scenes/props/prop_sheet_1_12.tscn" id="21_nnyi2"]
+[ext_resource type="PackedScene" path="res://art/scenes/props/prop_sheet_1_00.tscn" id="24_igkdo"]
+
+[node name="Beat01" type="Node2D" unique_id=1297836918]
+script = ExtResource("1_level")
+
+[node name="Terrain" type="Node2D" parent="." unique_id=1812355029]
+
+[node name="blob_sheet_1_01" parent="Terrain" unique_id=1183582296 instance=ExtResource("3_k41hd")]
+position = Vector2(-2663, 1308)
+color = Color(0, 0, 0, 0)
+
+[node name="blob_sheet_1_06" parent="Terrain" unique_id=1637940940 instance=ExtResource("3_vuiy4")]
+position = Vector2(656, -160)
+scale = Vector2(1, 1)
+color = Color(0, 0, 0, 0)
+
+[node name="blob_sheet_1_03" parent="Terrain" unique_id=1144590046 instance=ExtResource("18_q0kt6")]
+position = Vector2(785, 969)
+rotation = 2.9653144
+scale = Vector2(1.5, 1.5)
+color = Color(0, 0, 0, 0)
+
+[node name="blob_sheet_1_09" parent="Terrain" unique_id=347855729 instance=ExtResource("19_k5vw7")]
+position = Vector2(805, 1532.9996)
+rotation = -1.7697638
+scale = Vector2(0.99999994, 0.99999994)
+color = Color(0, 0, 0, 0)
+
+[node name="prop_sheet_1_13" parent="Terrain" unique_id=1236914518 instance=ExtResource("6_xuokj")]
+position = Vector2(1236.1438, 1943.7891)
+scale = Vector2(1, 1)
+color = Color(0, 0, 0, 0)
+
+[node name="blob_sheet_1_10" parent="Terrain" unique_id=798208932 instance=ExtResource("19_k5vw7")]
+position = Vector2(999, 1576)
+rotation = 3.185226
+scale = Vector2(1, 1)
+color = Color(0, 0, 0, 0)
+
+[node name="blob_sheet_1_04" parent="Terrain" unique_id=2052758590 instance=ExtResource("18_q0kt6")]
+position = Vector2(601, 1298.0001)
+rotation = 2.9653144
+scale = Vector2(2.9725406, 2.9725406)
+color = Color(0, 0, 0, 0)
+
+[node name="blob_sheet_1_05" parent="Terrain" unique_id=418884992 instance=ExtResource("18_q0kt6")]
+position = Vector2(618.0001, 1545.0002)
+rotation = 2.9653144
+scale = Vector2(2.9725406, 2.9725406)
+color = Color(0, 0, 0, 0)
+
+[node name="Props" type="Node2D" parent="." unique_id=1086718218]
+
+[node name="ChimneyB" parent="Props" unique_id=148336799 instance=ExtResource("12_stack")]
+position = Vector2(851, 611)
+scale = Vector2(0.9, 0.9)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(3.22417, 3.2363, 3.94013, 60.0133, 30.64112, 106.38648, 36.84103, 145.50655, 35.09214, 534.6989, 0.24464, 612.0605, 3.23791, 659.8013, 258.77582, 658.7637, 258.75568, 603.0974, 225.69145, 525.7773, 223.00633, 170.9069, 228.02898, 114.49404, 259.76114, 59.88982, 261.7442, 15.03528, 261.7886, 4.057907)
+
+[node name="ChimneyB2" parent="Props" unique_id=740448787 instance=ExtResource("12_stack")]
+position = Vector2(-988.3895, 633.84827)
+scale = Vector2(1.5923666, 1.5923666)
+color = Color(0, 0, 0, 0)
+
+[node name="ChimneyB3" parent="Props" unique_id=170654317 instance=ExtResource("12_stack")]
+position = Vector2(25, 538)
+scale = Vector2(1.17554, 1.1755401)
+color = Color(0, 0, 0, 0)
+
+[node name="prop_sheet_1_27" parent="Props" unique_id=2062657363 instance=ExtResource("13_gear_a")]
+position = Vector2(-173.38953, 604.8483)
+scale = Vector2(0.68238205, 0.69194335)
+color = Color(0, 0, 0, 0)
+
+[node name="prop_sheet_1_26" parent="Props" unique_id=1764690254 instance=ExtResource("13_gear_a")]
+position = Vector2(-652.3895, 684.0443)
+scale = Vector2(0.79156333, 0.79156333)
+color = Color(0, 0, 0, 0)
+
+[node name="prop_sheet_1_11" parent="Props" unique_id=2127009833 instance=ExtResource("14_gear_b")]
+position = Vector2(-370.38953, 711.84827)
+scale = Vector2(0.34188738, 0.34188738)
+color = Color(0, 0, 0, 0)
+
+[node name="prop_sheet_1_28" parent="Props" unique_id=872167389 instance=ExtResource("13_gear_a")]
+position = Vector2(176.00005, 610)
+scale = Vector2(0.67741954, 0.6869113)
+color = Color(0, 0, 0, 0)
+
+[node name="prop_sheet_1_12" parent="Props" unique_id=1689155259 instance=ExtResource("14_gear_b")]
+position = Vector2(405, 631)
+scale = Vector2(0.35433888, 0.35433888)
+color = Color(0, 0, 0, 0)
+
+[node name="prop_sheet_1_29" parent="Props" unique_id=988259473 instance=ExtResource("13_gear_a")]
+position = Vector2(681, 644)
+scale = Vector2(0.5558315, 0.5636196)
+color = Color(0, 0, 0, 0)
+
+[node name="prop_sheet_1_30" parent="Props" unique_id=776965265 instance=ExtResource("13_gear_a")]
+position = Vector2(136.00003, 1371)
+scale = Vector2(1.248139, 1.2656274)
+color = Color(0, 0, 0, 0)
+
+[node name="prop_sheet_1_14" parent="Props" unique_id=294410857 instance=ExtResource("13_bats7")]
+position = Vector2(1098.1438, 1944.7891)
+scale = Vector2(1, 1)
+color = Color(0, 0, 0, 0)
+
+[node name="prop_sheet_1_13" parent="Props" unique_id=1602913510 instance=ExtResource("14_gear_b")]
+position = Vector2(1112.8862, 1200.7745)
+scale = Vector2(0.5460723, 0.5460723)
+color = Color(0, 0, 0, 0)
+
+[node name="prop_sheet_1_15" parent="Props" unique_id=1726507460 instance=ExtResource("14_gear_b")]
+position = Vector2(1259, 1595.0001)
+scale = Vector2(0.314697, 0.31469697)
+color = Color(0, 0, 0, 0)
+
+[node name="Flags" type="Node2D" parent="." unique_id=575114009]
+
+[node name="FlagTop" parent="Flags" unique_id=2130701348 instance=ExtResource("9_flag")]
+position = Vector2(1105, 545)
+
+[node name="Spawn" parent="." unique_id=269154367 instance=ExtResource("8_spawn")]
+position = Vector2(-755, 594)
+
+[node name="ShatterEffect" type="Node2D" parent="." unique_id=1420018273]
+script = ExtResource("7_shatter")
+
+[node name="TrajectoryPreview" type="Node2D" parent="." unique_id=1554400315]
+script = ExtResource("4_preview")
+
+[node name="Ball" type="Node2D" parent="." unique_id=1482576845]
+position = Vector2(-755, 582)
+script = ExtResource("2_ball")
+
+[node name="Slingshot" type="Node2D" parent="." unique_id=1629812612]
+script = ExtResource("3_sling")
+ball_path = NodePath("../Ball")
+preview_path = NodePath("../TrajectoryPreview")
+
+[node name="FollowCamera" type="Camera2D" parent="." unique_id=937803993]
+zoom = Vector2(0.6, 0.6)
+script = ExtResource("5_camera")
+target_path = NodePath("../Ball")
+
+[node name="DebugOverlay" type="Node2D" parent="." unique_id=1449247650]
+visible = false
+script = ExtResource("6_debug")
+ball_path = NodePath("../Ball")
+slingshot_path = NodePath("../Slingshot")
+
+[node name="prop_sheet_1_17" parent="." unique_id=667715655 instance=ExtResource("20_k5vw7")]
+position = Vector2(773.1438, 1440.7891)
+rotation = 1.5707964
+scale = Vector2(1, 0.846)
+color = Color(0, 0, 0, 0)
+
+[node name="prop_sheet_1_12" parent="." unique_id=1975367359 instance=ExtResource("21_nnyi2")]
+position = Vector2(657.1439, 2065.789)
+rotation = -1.5707964
+scale = Vector2(1, 1)
+color = Color(0, 0, 0, 0)
+
+[node name="prop_sheet_1_14" parent="." unique_id=1638950719 instance=ExtResource("13_bats7")]
+position = Vector2(953.1439, 1944.7891)
+scale = Vector2(1, 1)
+color = Color(0, 0, 0, 0)
+
+[node name="prop_sheet_1_00" parent="." unique_id=1687251574 instance=ExtResource("24_igkdo")]
+position = Vector2(1306.9999, 2206)
+rotation = -1.5707964
+scale = Vector2(1.7069229, 1.7069229)
+color = Color(0, 0, 0, 0)
+
+[node name="blob_sheet_1_05" parent="." unique_id=1463434066 instance=ExtResource("18_q0kt6")]
+position = Vector2(444, 1943)
+rotation = 3.3178709
+scale = Vector2(2.9725406, 2.9725406)
+color = Color(0, 0, 0, 0)
