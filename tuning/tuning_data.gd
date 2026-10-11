@@ -110,6 +110,17 @@ extends Resource
 ## It only applies while the ball is already at rest, which is what stops it handing a free shot to
 ## the apex of every vertical launch.
 @export_range(0.0, 400.0, 1.0) var grounded_hover_reach: float = 40.0
+## How long the ball must stay still before a shot is allowed from wherever it is (seconds).
+##
+## The broadest of the anti-stranding rules: a ball that has simply STOPPED can shoot, whatever it
+## did or did not come to rest against.
+##
+## It is a DURATION, not a speed, and that is what makes it safe. Velocity passes through zero at
+## the apex of every vertical shot, so "slow right now" would be a free second launch in mid-air,
+## repeatable for ever. A ball that looks stationary stays stationary for a moment; an apex does
+## not, because gravity is already pulling it back through. Keep this comfortably longer than an
+## apex lingers -- the test suite measures that and fails if the margin disappears.
+@export_range(0.0, 2.0, 0.01) var grounded_rest_time: float = 0.2
 
 # ---------------------------------------------------------------- the launch limiter
 

@@ -297,12 +297,22 @@ static func fan_support(state: BallState, form: BallForm, world: StepWorld) -> b
 ##
 ## The speed test reuses `world.restMaxSpeed`, which is already this project's definition of "slow
 ## enough to count as resting", rather than inventing a second number that would drift from it.
+## Is the ball moving too slowly to notice?
+##
+## One definition, used by both anti-stranding rules, so they cannot drift apart. It reuses
+## `world.restMaxSpeed` -- already this project's answer to "slow enough to count as resting" --
+## rather than inventing a second number beside it.
+static func is_barely_moving(state: BallState) -> bool:
+	var limit: float = TuningData.get_active().world_rest_max_speed
+	return state.vx * state.vx + state.vy * state.vy <= limit * limit
+
+
 static func hovering_support(state: BallState, form: BallForm, world: StepWorld) -> bool:
 	var t: TuningData = TuningData.get_active()
 	var reach: float = maxf(0.0, t.grounded_hover_reach)
 	if reach <= 0.0:
 		return false
-	if state.vx * state.vx + state.vy * state.vy > t.world_rest_max_speed * t.world_rest_max_speed:
+	if not is_barely_moving(state):
 		return false
 	var found: Array = ground_under(state, form, world, reach)
 	return not found.is_empty() and is_horizontal_surface(found[1] as float)

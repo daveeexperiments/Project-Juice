@@ -305,6 +305,29 @@ func _test_not_stranded() -> void:
 		not BallSim.hovering_support(apex, form, world),
 		"stationary but %.0f px up" % (floor_y - apex.y))
 
+	# The broad rule -- a ball that has simply STOPPED can shoot -- is a DURATION, not a speed, and
+	# this is what buys that. Fire straight up and measure how long the ball actually reads as
+	# barely moving on the way over the top. If that ever grows past `grounded.restTime`, the rule
+	# starts handing out free launches in mid-air and this fails before a player finds it.
+	var rising: BallState = BallState.new()
+	rising.x = 500.0
+	rising.y = floor_y
+	rising.vy = -form.max_launch_speed
+	var dt: float = t.fixed_delta()
+	var longest: float = 0.0
+	var run: float = 0.0
+	for _i: int in 600:
+		BallSim.step_ball(rising, form, world, dt, null)
+		if rising.y >= floor_y - 1.0:
+			break  # back on the floor; stop before resting stillness is counted
+		run = run + dt if BallSim.is_barely_moving(rising) else 0.0
+		longest = maxf(longest, run)
+	_check(
+		"an apex never lasts long enough to count as at rest",
+		longest < t.grounded_rest_time,
+		"apex reads still for %.3fs, rule needs %.2fs" % [longest, t.grounded_rest_time],
+	)
+
 
 ## A piece's role decides what the importer builds for it.
 func _test_piece_roles() -> void:
