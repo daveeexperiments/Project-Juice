@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="SheetManifest" format=3]
+
+[ext_resource type="Script" path="res://tools/piece_entry.gd" id="1_ea3f1"]
+[ext_resource type="Script" path="res://tools/sheet_manifest.gd" id="2_pki1y"]
+
+[sub_resource type="Resource" id="Resource_ea3f1"]
+script = ExtResource("1_ea3f1")
+id = "open_ring_00"
+reviewed = true
+close_pockets = false
+sheet = "res://art/source/props/open_ring.png"
+region = Rect2i(270, 313, 492, 449)
+outline = PackedVector2Array(110, 1, 92, 9, 90, 9, 35, 76, 34, 76, 0, 182, 0, 224, 36, 331, 36, 333, 119, 414, 119, 415, 225, 448, 225, 449, 295, 444, 300, 444, 362, 420, 364, 420, 452, 338, 453, 338, 491, 224, 492, 224, 487, 154, 487, 149, 463, 87, 463, 85, 401, 9, 401, 8, 368, 3, 365, 3, 348, 40, 348, 44, 404, 106, 405, 106, 428, 169, 429, 169, 430, 223, 430, 231, 412, 280, 412, 282, 364, 334, 364, 335, 300, 366, 300, 367, 231, 373, 221, 373, 153, 350, 151, 350, 86, 290, 85, 290, 62, 223, 61, 223, 77, 128, 77, 125, 144, 40, 145, 40, 137, 12, 137, 10, 110, 0)
+solidity = 0.9457289636846767
+box_fill = 0.30208503087258043
+circularity = 0.44564741928549423
+vertex_count = 58
+
+[resource]
+script = ExtResource("2_pki1y")
+sheet = "res://art/source/props/open_ring.png"
+family = "props"
+pieces = Array[ExtResource("1_ea3f1")]([SubResource("Resource_ea3f1")])

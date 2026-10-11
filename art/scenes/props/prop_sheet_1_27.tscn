@@ -3,12 +3,12 @@
 [ext_resource type="Script" path="res://blocks/terrain_block.gd" id="1_xj72a"]
 [ext_resource type="Texture2D" path="res://art/atlas/props/prop_sheet_1_27.tres" id="2_lugcd"]
 
-[node name="prop_sheet_1_27" type="Polygon2D" unique_id=802791795]
+[node name="prop_sheet_1_27" type="Polygon2D" unique_id=1769741504]
 scale = Vector2(0.288, 0.288)
 polygon = PackedVector2Array(403, 207.5, 397.56854, 253.9691, 381.567, 297.93304, 355.85797, 337.02173, 321.82745, 369.1278, 281.31006, 392.52057, 236.49011, 405.93875, 189.78381, 408.65912, 143.70914, 400.53488, 100.75, 382.00412, 63.222305, 354.0658, 33.149216, 318.22607, 12.151932, 276.41705, 1.3624725, 230.89272, 1.3624725, 184.10728, 12.151932, 138.58295, 33.149216, 96.77394, 63.222305, 60.934204, 100.75, 32.99588, 143.70914, 14.465118, 189.78381, 6.3408966, 236.49011, 9.061249, 281.31006, 22.479446, 321.82745, 45.872177, 355.85797, 77.97829, 381.567, 117.06696, 397.56854, 161.0309)
 script = ExtResource("1_xj72a")
 show_placeholder = false
 
-[node name="Art" type="Sprite2D" parent="." unique_id=288493889]
+[node name="Art" type="Sprite2D" parent="." unique_id=346001811]
 position = Vector2(201.5, 207.5)
 texture = ExtResource("2_lugcd")

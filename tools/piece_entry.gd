@@ -116,6 +116,20 @@ enum Role {
 ## silently inert -- the failure `core/spike_strip.gd` opens by warning about.
 @export var hazard_radius: float = 0.0
 
+## For `POLYGON`: fill every pocket the ball cannot fit into. On for terrain, off for a cup.
+##
+## Closing is the main defence against a ball wedging in organic terrain, so it defaults on. But it
+## cannot tell a pocket that traps the ball from a cradle the ball is MEANT to sit in, and for a
+## piece like an open ring it fills the bowl and leaves a solid blob -- correct by its own rule and
+## useless for the thing the art is for.
+##
+## There is a second reason it needs an escape, and it is the one that is easy to miss: the closing
+## is computed once, in source pixels, against the ball at the piece's DEFAULT scale. A piece
+## placed at twice that size has pockets twice as large relative to the ball, but its outline was
+## already closed as though they were not. So for anything whose concavity is the point, turn this
+## off and let the placement scale decide what fits -- which is where that decision belongs.
+@export var close_pockets: bool = true
+
 
 ## The outer radius to collide with, measured from the region when `radius` is left at 0.
 ##

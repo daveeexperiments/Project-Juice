@@ -152,6 +152,11 @@ static func _closed_outline(entry: PieceEntry) -> PackedVector2Array:
 	if outline.size() < 3:
 		return outline
 
+	if not entry.close_pockets:
+		# The concavity is the point -- a cradle, a cup, a ring to pass through. Keep the traced
+		# shape and let the placement scale decide what fits. See `PieceEntry.close_pockets`.
+		return _simplify(outline, SIMPLIFY_EPSILON)
+
 	var radius: float = ball_radius_source()
 	if radius <= 0.0:
 		return outline

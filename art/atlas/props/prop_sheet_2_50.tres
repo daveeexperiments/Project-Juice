@@ -1,7 +1,7 @@
 [gd_resource type="AtlasTexture" format=3]
 
-[ext_resource type="Texture2D" path="res://art/source/props/Prop Sheet 2.png" id="1_jyhy8"]
+[ext_resource type="Texture2D" path="res://art/source/props/Prop Sheet 2.png" id="1_c5l7i"]
 
 [resource]
-atlas = ExtResource("1_jyhy8")
+atlas = ExtResource("1_c5l7i")
 region = Rect2(3709, 2608, 55, 92)

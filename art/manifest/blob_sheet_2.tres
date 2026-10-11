@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://tools/piece_entry.gd" id="1_san0q"]
 [ext_resource type="Script" path="res://tools/sheet_manifest.gd" id="2_54lp6"]
 
-[sub_resource type="Resource" id="Resource_tje45"]
+[sub_resource type="Resource" id="Resource_san0q"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_00"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -14,7 +14,7 @@ box_fill = 0.5809328904321873
 circularity = 1.508208943339002
 vertex_count = 54
 
-[sub_resource type="Resource" id="Resource_k2udm"]
+[sub_resource type="Resource" id="Resource_54lp6"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_01"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -25,7 +25,7 @@ box_fill = 0.7733268983268984
 circularity = 1.0482471774579285
 vertex_count = 26
 
-[sub_resource type="Resource" id="Resource_gj603"]
+[sub_resource type="Resource" id="Resource_tje45"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_02"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -36,7 +36,7 @@ box_fill = 0.6248022015823873
 circularity = 1.4375817600463494
 vertex_count = 26
 
-[sub_resource type="Resource" id="Resource_ju85a"]
+[sub_resource type="Resource" id="Resource_k2udm"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_03"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -47,7 +47,7 @@ box_fill = 0.2627610058525837
 circularity = 0.7639476210713341
 vertex_count = 76
 
-[sub_resource type="Resource" id="Resource_ds41c"]
+[sub_resource type="Resource" id="Resource_gj603"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_04"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -58,7 +58,7 @@ box_fill = 0.5976431514067639
 circularity = 1.092126165002891
 vertex_count = 28
 
-[sub_resource type="Resource" id="Resource_wjxb4"]
+[sub_resource type="Resource" id="Resource_ju85a"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_05"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -69,7 +69,7 @@ box_fill = 0.7845213554081041
 circularity = 1.0506948404733174
 vertex_count = 34
 
-[sub_resource type="Resource" id="Resource_a7qh3"]
+[sub_resource type="Resource" id="Resource_ds41c"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_06"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -80,7 +80,7 @@ box_fill = 0.33599588783249573
 circularity = 0.7291731230418701
 vertex_count = 66
 
-[sub_resource type="Resource" id="Resource_of53q"]
+[sub_resource type="Resource" id="Resource_wjxb4"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_07"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -91,7 +91,7 @@ box_fill = 0.7003881495564005
 circularity = 3.9323649661494184
 vertex_count = 38
 
-[sub_resource type="Resource" id="Resource_w7uia"]
+[sub_resource type="Resource" id="Resource_a7qh3"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_08"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -102,7 +102,7 @@ box_fill = 0.8000624137704487
 circularity = 5.39503790443453
 vertex_count = 28
 
-[sub_resource type="Resource" id="Resource_7cpes"]
+[sub_resource type="Resource" id="Resource_of53q"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_09"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -113,7 +113,7 @@ box_fill = 0.5159621265674945
 circularity = 1.5595347753245865
 vertex_count = 60
 
-[sub_resource type="Resource" id="Resource_cq1qc"]
+[sub_resource type="Resource" id="Resource_w7uia"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_10"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -124,7 +124,7 @@ box_fill = 0.4752822874420941
 circularity = 1.5549882962782593
 vertex_count = 42
 
-[sub_resource type="Resource" id="Resource_xwot3"]
+[sub_resource type="Resource" id="Resource_7cpes"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_11"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -135,7 +135,7 @@ box_fill = 0.5008088812921382
 circularity = 0.9275933416236041
 vertex_count = 60
 
-[sub_resource type="Resource" id="Resource_jux0v"]
+[sub_resource type="Resource" id="Resource_cq1qc"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_12"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -146,7 +146,7 @@ box_fill = 0.7691394367579236
 circularity = 1.5011693929273418
 vertex_count = 24
 
-[sub_resource type="Resource" id="Resource_nom2m"]
+[sub_resource type="Resource" id="Resource_xwot3"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_13"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -157,7 +157,7 @@ box_fill = 0.40154236647076963
 circularity = 0.8875976888734406
 vertex_count = 54
 
-[sub_resource type="Resource" id="Resource_hs7cy"]
+[sub_resource type="Resource" id="Resource_jux0v"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_14"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -168,7 +168,7 @@ box_fill = 0.6282541086492923
 circularity = 2.1990756199429344
 vertex_count = 56
 
-[sub_resource type="Resource" id="Resource_ebh6m"]
+[sub_resource type="Resource" id="Resource_nom2m"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_15"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -179,7 +179,7 @@ box_fill = 0.6094654334073626
 circularity = 4.2731726389258675
 vertex_count = 60
 
-[sub_resource type="Resource" id="Resource_gmhmy"]
+[sub_resource type="Resource" id="Resource_hs7cy"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_16"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -190,7 +190,7 @@ box_fill = 0.5842761507786138
 circularity = 1.1644853279807714
 vertex_count = 36
 
-[sub_resource type="Resource" id="Resource_h6su2"]
+[sub_resource type="Resource" id="Resource_ebh6m"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_17"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -201,7 +201,7 @@ box_fill = 0.5916889989098837
 circularity = 1.1312137707483443
 vertex_count = 34
 
-[sub_resource type="Resource" id="Resource_mmiih"]
+[sub_resource type="Resource" id="Resource_gmhmy"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_18"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -212,7 +212,7 @@ box_fill = 0.772248387580621
 circularity = 1.028050442524255
 vertex_count = 38
 
-[sub_resource type="Resource" id="Resource_phoh8"]
+[sub_resource type="Resource" id="Resource_h6su2"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_19"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -223,7 +223,7 @@ box_fill = 0.7342887588219851
 circularity = 1.7662789372196808
 vertex_count = 44
 
-[sub_resource type="Resource" id="Resource_uy78g"]
+[sub_resource type="Resource" id="Resource_mmiih"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_20"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -234,7 +234,7 @@ box_fill = 0.8186266069788797
 circularity = 4.178255699531651
 vertex_count = 22
 
-[sub_resource type="Resource" id="Resource_xwsjj"]
+[sub_resource type="Resource" id="Resource_phoh8"]
 script = ExtResource("1_san0q")
 id = "blob_sheet_2_21"
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
@@ -249,4 +249,4 @@ vertex_count = 22
 script = ExtResource("2_54lp6")
 sheet = "res://art/source/terrain/Blob Sheet 2.png"
 family = "terrain"
-pieces = Array[ExtResource("1_san0q")]([SubResource("Resource_tje45"), SubResource("Resource_k2udm"), SubResource("Resource_gj603"), SubResource("Resource_ju85a"), SubResource("Resource_ds41c"), SubResource("Resource_wjxb4"), SubResource("Resource_a7qh3"), SubResource("Resource_of53q"), SubResource("Resource_w7uia"), SubResource("Resource_7cpes"), SubResource("Resource_cq1qc"), SubResource("Resource_xwot3"), SubResource("Resource_jux0v"), SubResource("Resource_nom2m"), SubResource("Resource_hs7cy"), SubResource("Resource_ebh6m"), SubResource("Resource_gmhmy"), SubResource("Resource_h6su2"), SubResource("Resource_mmiih"), SubResource("Resource_phoh8"), SubResource("Resource_uy78g"), SubResource("Resource_xwsjj")])
+pieces = Array[ExtResource("1_san0q")]([SubResource("Resource_san0q"), SubResource("Resource_54lp6"), SubResource("Resource_tje45"), SubResource("Resource_k2udm"), SubResource("Resource_gj603"), SubResource("Resource_ju85a"), SubResource("Resource_ds41c"), SubResource("Resource_wjxb4"), SubResource("Resource_a7qh3"), SubResource("Resource_of53q"), SubResource("Resource_w7uia"), SubResource("Resource_7cpes"), SubResource("Resource_cq1qc"), SubResource("Resource_xwot3"), SubResource("Resource_jux0v"), SubResource("Resource_nom2m"), SubResource("Resource_hs7cy"), SubResource("Resource_ebh6m"), SubResource("Resource_gmhmy"), SubResource("Resource_h6su2"), SubResource("Resource_mmiih"), SubResource("Resource_phoh8")])

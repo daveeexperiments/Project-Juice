@@ -1,7 +1,7 @@
 [gd_resource type="AtlasTexture" format=3]
 
-[ext_resource type="Texture2D" path="res://art/source/terrain/Blob Sheet 3.png" id="1_s5crx"]
+[ext_resource type="Texture2D" path="res://art/source/terrain/Blob Sheet 3.png" id="1_w0xry"]
 
 [resource]
-atlas = ExtResource("1_s5crx")
+atlas = ExtResource("1_w0xry")
 region = Rect2(1457, 2026, 760, 917)

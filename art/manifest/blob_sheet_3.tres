@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://tools/piece_entry.gd" id="1_8rs68"]
 [ext_resource type="Script" path="res://tools/sheet_manifest.gd" id="2_532ys"]
 
-[sub_resource type="Resource" id="Resource_phx1p"]
+[sub_resource type="Resource" id="Resource_8rs68"]
 script = ExtResource("1_8rs68")
 id = "blob_sheet_3_00"
 sheet = "res://art/source/terrain/Blob Sheet 3.png"
@@ -14,7 +14,7 @@ box_fill = 0.7941353965183753
 circularity = 3.566926692363049
 vertex_count = 36
 
-[sub_resource type="Resource" id="Resource_c8mav"]
+[sub_resource type="Resource" id="Resource_532ys"]
 script = ExtResource("1_8rs68")
 id = "blob_sheet_3_01"
 sheet = "res://art/source/terrain/Blob Sheet 3.png"
@@ -25,7 +25,7 @@ box_fill = 0.7697572856303015
 circularity = 1.9818131242930646
 vertex_count = 28
 
-[sub_resource type="Resource" id="Resource_07ukr"]
+[sub_resource type="Resource" id="Resource_phx1p"]
 script = ExtResource("1_8rs68")
 id = "blob_sheet_3_02"
 sheet = "res://art/source/terrain/Blob Sheet 3.png"
@@ -36,7 +36,7 @@ box_fill = 0.762326370122149
 circularity = 1.3367400724346732
 vertex_count = 38
 
-[sub_resource type="Resource" id="Resource_btdht"]
+[sub_resource type="Resource" id="Resource_c8mav"]
 script = ExtResource("1_8rs68")
 id = "blob_sheet_3_03"
 sheet = "res://art/source/terrain/Blob Sheet 3.png"
@@ -47,7 +47,7 @@ box_fill = 0.7817800408557994
 circularity = 2.645470418610983
 vertex_count = 40
 
-[sub_resource type="Resource" id="Resource_1k8ni"]
+[sub_resource type="Resource" id="Resource_07ukr"]
 script = ExtResource("1_8rs68")
 id = "blob_sheet_3_04"
 sheet = "res://art/source/terrain/Blob Sheet 3.png"
@@ -58,7 +58,7 @@ box_fill = 0.47065073988233197
 circularity = 1.6253562767702694
 vertex_count = 46
 
-[sub_resource type="Resource" id="Resource_1t4m4"]
+[sub_resource type="Resource" id="Resource_btdht"]
 script = ExtResource("1_8rs68")
 id = "blob_sheet_3_05"
 sheet = "res://art/source/terrain/Blob Sheet 3.png"
@@ -69,7 +69,7 @@ box_fill = 0.6454696180039501
 circularity = 1.1663570317610323
 vertex_count = 44
 
-[sub_resource type="Resource" id="Resource_0kv4p"]
+[sub_resource type="Resource" id="Resource_1k8ni"]
 script = ExtResource("1_8rs68")
 id = "blob_sheet_3_06"
 sheet = "res://art/source/terrain/Blob Sheet 3.png"
@@ -80,7 +80,7 @@ box_fill = 0.7621360121360121
 circularity = 1.1109976024097428
 vertex_count = 32
 
-[sub_resource type="Resource" id="Resource_qyxk4"]
+[sub_resource type="Resource" id="Resource_1t4m4"]
 script = ExtResource("1_8rs68")
 id = "blob_sheet_3_07"
 sheet = "res://art/source/terrain/Blob Sheet 3.png"
@@ -91,7 +91,7 @@ box_fill = 0.7760976150586381
 circularity = 2.0831167011952774
 vertex_count = 30
 
-[sub_resource type="Resource" id="Resource_m8juo"]
+[sub_resource type="Resource" id="Resource_0kv4p"]
 script = ExtResource("1_8rs68")
 id = "blob_sheet_3_08"
 sheet = "res://art/source/terrain/Blob Sheet 3.png"
@@ -102,7 +102,7 @@ box_fill = 0.748092211970539
 circularity = 1.0407231673215496
 vertex_count = 26
 
-[sub_resource type="Resource" id="Resource_yl7ei"]
+[sub_resource type="Resource" id="Resource_qyxk4"]
 script = ExtResource("1_8rs68")
 id = "blob_sheet_3_09"
 sheet = "res://art/source/terrain/Blob Sheet 3.png"
@@ -113,7 +113,7 @@ box_fill = 0.7631049454622472
 circularity = 1.367829548604101
 vertex_count = 40
 
-[sub_resource type="Resource" id="Resource_py82o"]
+[sub_resource type="Resource" id="Resource_m8juo"]
 script = ExtResource("1_8rs68")
 id = "blob_sheet_3_10"
 sheet = "res://art/source/terrain/Blob Sheet 3.png"
@@ -124,7 +124,7 @@ box_fill = 0.49147905957880583
 circularity = 1.2195694597677629
 vertex_count = 36
 
-[sub_resource type="Resource" id="Resource_vqfs6"]
+[sub_resource type="Resource" id="Resource_yl7ei"]
 script = ExtResource("1_8rs68")
 id = "blob_sheet_3_11"
 sheet = "res://art/source/terrain/Blob Sheet 3.png"
@@ -135,7 +135,7 @@ box_fill = 0.6868725281411622
 circularity = 2.596705239274961
 vertex_count = 42
 
-[sub_resource type="Resource" id="Resource_pjfdk"]
+[sub_resource type="Resource" id="Resource_py82o"]
 script = ExtResource("1_8rs68")
 id = "blob_sheet_3_12"
 sheet = "res://art/source/terrain/Blob Sheet 3.png"
@@ -146,7 +146,7 @@ box_fill = 0.5266369537255841
 circularity = 2.2137495841137045
 vertex_count = 38
 
-[sub_resource type="Resource" id="Resource_88y08"]
+[sub_resource type="Resource" id="Resource_vqfs6"]
 script = ExtResource("1_8rs68")
 id = "blob_sheet_3_13"
 sheet = "res://art/source/terrain/Blob Sheet 3.png"
@@ -157,7 +157,7 @@ box_fill = 0.3416211235383833
 circularity = 0.881513350937617
 vertex_count = 32
 
-[sub_resource type="Resource" id="Resource_pjtny"]
+[sub_resource type="Resource" id="Resource_pjfdk"]
 script = ExtResource("1_8rs68")
 id = "blob_sheet_3_14"
 sheet = "res://art/source/terrain/Blob Sheet 3.png"
@@ -168,7 +168,7 @@ box_fill = 0.32868334959536244
 circularity = 0.5076855313853583
 vertex_count = 54
 
-[sub_resource type="Resource" id="Resource_03053"]
+[sub_resource type="Resource" id="Resource_88y08"]
 script = ExtResource("1_8rs68")
 id = "blob_sheet_3_15"
 sheet = "res://art/source/terrain/Blob Sheet 3.png"
@@ -179,7 +179,7 @@ box_fill = 0.5742560659470353
 circularity = 1.0995008156130328
 vertex_count = 68
 
-[sub_resource type="Resource" id="Resource_kqbit"]
+[sub_resource type="Resource" id="Resource_pjtny"]
 script = ExtResource("1_8rs68")
 id = "blob_sheet_3_16"
 sheet = "res://art/source/terrain/Blob Sheet 3.png"
@@ -190,7 +190,7 @@ box_fill = 0.38640567200986436
 circularity = 0.7429087466336134
 vertex_count = 50
 
-[sub_resource type="Resource" id="Resource_eyhx5"]
+[sub_resource type="Resource" id="Resource_03053"]
 script = ExtResource("1_8rs68")
 id = "blob_sheet_3_17"
 sheet = "res://art/source/terrain/Blob Sheet 3.png"
@@ -205,4 +205,4 @@ vertex_count = 42
 script = ExtResource("2_532ys")
 sheet = "res://art/source/terrain/Blob Sheet 3.png"
 family = "terrain"
-pieces = Array[ExtResource("1_8rs68")]([SubResource("Resource_phx1p"), SubResource("Resource_c8mav"), SubResource("Resource_07ukr"), SubResource("Resource_btdht"), SubResource("Resource_1k8ni"), SubResource("Resource_1t4m4"), SubResource("Resource_0kv4p"), SubResource("Resource_qyxk4"), SubResource("Resource_m8juo"), SubResource("Resource_yl7ei"), SubResource("Resource_py82o"), SubResource("Resource_vqfs6"), SubResource("Resource_pjfdk"), SubResource("Resource_88y08"), SubResource("Resource_pjtny"), SubResource("Resource_03053"), SubResource("Resource_kqbit"), SubResource("Resource_eyhx5")])
+pieces = Array[ExtResource("1_8rs68")]([SubResource("Resource_8rs68"), SubResource("Resource_532ys"), SubResource("Resource_phx1p"), SubResource("Resource_c8mav"), SubResource("Resource_07ukr"), SubResource("Resource_btdht"), SubResource("Resource_1k8ni"), SubResource("Resource_1t4m4"), SubResource("Resource_0kv4p"), SubResource("Resource_qyxk4"), SubResource("Resource_m8juo"), SubResource("Resource_yl7ei"), SubResource("Resource_py82o"), SubResource("Resource_vqfs6"), SubResource("Resource_pjfdk"), SubResource("Resource_88y08"), SubResource("Resource_pjtny"), SubResource("Resource_03053")])

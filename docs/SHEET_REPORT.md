@@ -200,6 +200,14 @@ recorded in `art/manifest/`, so this file is safe to regenerate at any time.
 | `prop_sheet_2_55` | 1022, 3462 | 496 x 496 | circle | circle | 356 | 0.89 | 0.59 | 0.84 |
 | `prop_sheet_2_56` | 1629, 3452 | 505 x 507 | circle | circle | 156 | 0.90 | 0.61 | 0.86 |
 
+## open_ring.png
+
+1 pieces, traced at epsilon 8.0.
+
+| id | region | size | kind | guessed | verts | solidity | box fill | circularity |
+|---|---|---|---|---|---|---|---|---|
+| `open_ring_00` | 270, 313 | 492 x 449 | polygon | polygon | 58 | 0.95 | 0.30 | 0.45 |
+
 
 ## Reviewing a guess
 

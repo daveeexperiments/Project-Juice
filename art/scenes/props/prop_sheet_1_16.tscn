@@ -1,18 +1,10 @@
 [gd_scene format=3]
 
-[ext_resource type="Texture2D" path="res://art/atlas/props/prop_sheet_1_16.tres" id="1_rh8go"]
-[ext_resource type="Script" path="res://blocks/spikes_block.gd" id="2_sq36n"]
+[ext_resource type="Texture2D" path="res://art/atlas/props/prop_sheet_1_16.tres" id="1_8dv1v"]
 
-[node name="prop_sheet_1_16" type="Node2D" unique_id=1169216969]
+[node name="prop_sheet_1_16" type="Node2D" unique_id=1757174091]
 scale = Vector2(0.288, 0.288)
 
-[node name="Art" type="Sprite2D" parent="." unique_id=1616388570]
+[node name="Art" type="Sprite2D" parent="." unique_id=2135493503]
 position = Vector2(389.5, 387)
-texture = ExtResource("1_rh8go")
-
-[node name="Hazard" type="Polygon2D" parent="." unique_id=1976654888]
-position = Vector2(389.5, 387)
-polygon = PackedVector2Array(406.35, 0, 392.50397, 105.17112, 351.90942, 203.175, 287.33282, 287.33282, 203.175, 351.90942, 105.17112, 392.50397, 2.4881762e-14, 406.35, -105.17112, 392.50397, -203.175, 351.90942, -287.33282, 287.33282, -351.90942, 203.175, -392.50397, 105.17112, -406.35, 4.9763524e-14, -392.50397, -105.17112, -351.90942, -203.175, -287.33282, -287.33282, -203.175, -351.90942, -105.17112, -392.50397, -7.464528e-14, -406.35, 105.17112, -392.50397, 203.175, -351.90942, 287.33282, -287.33282, 351.90942, -203.175, 392.50397, -105.17112)
-script = ExtResource("2_sq36n")
-shape = 1
-radius = 406.35
+texture = ExtResource("1_8dv1v")
