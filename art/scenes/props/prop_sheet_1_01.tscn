@@ -3,14 +3,14 @@
 [ext_resource type="Texture2D" path="res://art/atlas/props/prop_sheet_1_01.tres" id="1_bib7d"]
 [ext_resource type="Script" path="res://blocks/spikes_block.gd" id="2_qjqm4"]
 
-[node name="prop_sheet_1_01" type="Node2D" unique_id=382338267]
+[node name="prop_sheet_1_01" type="Node2D" unique_id=198102729]
 scale = Vector2(0.288, 0.288)
 
-[node name="Art" type="Sprite2D" parent="." unique_id=4276140]
+[node name="Art" type="Sprite2D" parent="." unique_id=1016127542]
+position = Vector2(375, 379)
 texture = ExtResource("1_bib7d")
-centered = false
 
-[node name="Hazard" type="Polygon2D" parent="." unique_id=912974825]
+[node name="Hazard" type="Polygon2D" parent="." unique_id=1766834537]
 position = Vector2(375, 379)
 polygon = PackedVector2Array(393.75, 0, 380.33328, 101.909996, 340.9975, 196.875, 278.42328, 278.42328, 196.875, 340.9975, 101.909996, 380.33328, 2.4110235e-14, 393.75, -101.909996, 380.33328, -196.875, 340.9975, -278.42328, 278.42328, -340.9975, 196.875, -380.33328, 101.909996, -393.75, 4.822047e-14, -380.33328, -101.909996, -340.9975, -196.875, -278.42328, -278.42328, -196.875, -340.9975, -101.909996, -380.33328, -7.23307e-14, -393.75, 101.909996, -380.33328, 196.875, -340.9975, 278.42328, -278.42328, 340.9975, -196.875, 380.33328, -101.909996)
 script = ExtResource("2_qjqm4")

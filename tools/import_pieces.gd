@@ -112,8 +112,18 @@ func _write_scene(piece: PieceEntry, outline: PackedVector2Array, scale: float, 
 
 	var sprite: Sprite2D = Sprite2D.new()
 	sprite.name = "Art"
-	# Top-left anchored, so the sprite lines up with an outline measured from the region corner.
-	sprite.centered = false
+	# Centred on the ART's middle, then moved out to where the region's top-left anchoring puts it.
+	#
+	# The two together land the texture in exactly the same place as `centered = false` at the
+	# origin did, so nothing placed moves. What changes is the sprite's own pivot: it is now the
+	# middle of the piece rather than its top-left corner, which is the point `spin` turns about.
+	# Anchored at the corner, a spinning gear ORBITS its corner instead of turning on the spot.
+	#
+	# The collision polygon is still measured from the region corner and still lives on the root,
+	# which is untouched by any of this -- and must stay that way, since the collision a spinning
+	# gear presents cannot change as it turns.
+	sprite.centered = true
+	sprite.position = Vector2(piece.region.size) * 0.5
 	sprite.texture = art
 	root.add_child(sprite)
 	sprite.owner = root
