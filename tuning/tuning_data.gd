@@ -100,6 +100,16 @@ extends Resource
 @export var grounded_launch_from_fan: bool = true
 ## How far off straight up a fan may blow and still be launchable (degrees).
 @export_range(0.0, 89.0, 1.0) var grounded_fan_launch_angle: float = 45.0
+## How far below a stationary ball to look for something it could stand on (px). 0 turns it off.
+##
+## The anti-stranding rule. A ball that has stopped dead a little clear of a surface -- wedged in a
+## dip, settled on a curve, held just off a ledge -- is not airborne in any sense the player would
+## recognise, but the ordinary support probe reaches only a few pixels and reports nothing. In a
+## game with no walking, a shot that will not fire there ends the run.
+##
+## It only applies while the ball is already at rest, which is what stops it handing a free shot to
+## the apex of every vertical launch.
+@export_range(0.0, 400.0, 1.0) var grounded_hover_reach: float = 40.0
 
 # ---------------------------------------------------------------- the launch limiter
 
@@ -199,6 +209,22 @@ extends Resource
 ## Look-ahead in the direction of travel, as a multiple of speed.
 @export_range(0.0, 1.0, 0.01) var camera_look_ahead: float = 0.3
 @export_range(0.0, 1800.0, 10.0) var camera_look_ahead_max: float = 840.0
+
+@export_subgroup("Aim framing")
+## How far the camera may pull back while aiming. Lower shows more; 1 is no pull-back at all.
+##
+## The ghost line is the mechanic, and a line running off the edge of the screen is a line the
+## player cannot read. So while aiming the camera frames the WHOLE of it -- which means the view
+## has to grow with the shot, because a full-power launch covers several screens at the resting
+## zoom.
+@export_range(0.1, 1.0, 0.01) var camera_aim_zoom_min: float = 0.35
+## Clear space to leave around the framed shot (px), so the line never touches the edge.
+@export_range(0.0, 1000.0, 10.0) var camera_aim_margin: float = 220.0
+## How far to slide from the ball towards the middle of the shot while aiming. 0 keeps the ball
+## centred, which wastes half the view on where the shot is coming FROM.
+@export_range(0.0, 1.0, 0.05) var camera_aim_recentre: float = 0.6
+## How quickly the view opens and closes. Slower than the follow, so it reads as a move.
+@export_range(0.01, 1.0, 0.01) var camera_zoom_lerp: float = 0.08
 
 # ---------------------------------------------------------------- glass
 

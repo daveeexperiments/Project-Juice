@@ -105,10 +105,18 @@ var on_launchable_ground: bool:
 			return true
 		if state.ground_material != SurfaceKind.NONE:
 			return BallSim.is_horizontal_surface(state.ground_ny)
+		if _world == null:
+			return false
 		# An upward stream counts as something to stand on, when `grounded.launchFromFan` says so.
 		# Without it a squishy ball hovering in a fan would have no shot available and no way down
-		# but to drift out -- held up by the level and stuck in it at the same time.
-		return _world != null and BallSim.fan_support(state, form, _world)
+		# but to drift out -- held up by the level and stuck in it at the same time. Anywhere the
+		# stream would push a stationary ball counts, so its taper and its edges are included, not
+		# just the core.
+		if BallSim.fan_support(state, form, _world):
+			return true
+		# ...and so does having stopped dead just above something flat. Same reasoning as the fan:
+		# the player is somewhere the level put them, and no shot from there is a dead end.
+		return BallSim.hovering_support(state, form, _world)
 
 
 ## True while Grounded mode would let a shot go: on launchable ground, or inside the coyote

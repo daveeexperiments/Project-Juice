@@ -60,6 +60,7 @@ func _initialize() -> void:
 	_test_disc_hazard()
 	_test_pipes()
 	_test_piece_roles()
+	_test_not_stranded()
 	_test_spike_sweep_at_speed()
 	_test_respawn_uses_latest_flag()
 
@@ -261,6 +262,48 @@ func _test_spikes_every_side() -> void:
 
 	var clear: bool = not strip.touches(500.0, 500.0 - 10.0 - r * 3.0, r)
 	_check("spikes do not bite from well clear", clear, "3 radii in front is safe")
+
+
+## Nowhere the level can put you is a dead end: the anti-stranding rules.
+func _test_not_stranded() -> void:
+	var t: TuningData = TuningData.get_active()
+	var form: BallForm = BallForm.make(BallForm.SQUISHY)
+	var world: StepWorld = _plain_room()
+
+	# A floor to hover over. _plain_room's own floor serves; find where its top is by dropping.
+	var resting: BallState = BallState.new()
+	resting.x = 500.0
+	resting.y = 200.0
+	for _i: int in 600:
+		BallSim.step_ball(resting, form, world, t.fixed_delta(), null)
+	var floor_y: float = resting.y
+
+	# Stopped dead a little clear of the floor -- further than the support probe reaches, closer
+	# than the hover reach. The ordinary probe sees nothing here.
+	var hovering: BallState = BallState.new()
+	hovering.x = 500.0
+	hovering.y = floor_y - t.grounded_hover_reach * 0.6
+	_check("a ball stopped just above a floor can still launch",
+		BallSim.hovering_support(hovering, form, world),
+		"%.0f px clear, reach %.0f" % [floor_y - hovering.y, t.grounded_hover_reach])
+
+	# Moving at speed over the same spot is NOT standing on it.
+	var passing: BallState = BallState.new()
+	passing.x = hovering.x
+	passing.y = hovering.y
+	passing.vx = t.world_rest_max_speed * 4.0
+	_check("but not while it is still travelling",
+		not BallSim.hovering_support(passing, form, world),
+		"%.0f px/s is above restMaxSpeed %.0f" % [passing.vx, t.world_rest_max_speed])
+
+	# The exploit this has to avoid: velocity passes through zero at the apex of every vertical
+	# shot. Without the surface test that would be a free second launch, in mid-air, for ever.
+	var apex: BallState = BallState.new()
+	apex.x = 500.0
+	apex.y = floor_y - t.grounded_hover_reach * 20.0
+	_check("the apex of a vertical shot is not a floor",
+		not BallSim.hovering_support(apex, form, world),
+		"stationary but %.0f px up" % (floor_y - apex.y))
 
 
 ## A piece's role decides what the importer builds for it.

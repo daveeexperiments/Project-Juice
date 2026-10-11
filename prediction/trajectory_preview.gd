@@ -94,6 +94,20 @@ func simulate(
 	return _points
 
 
+## The box the drawn line occupies, or an empty Rect2 when there is no line.
+##
+## The camera frames this while aiming, which is the whole point of the preview being honest: the
+## box is where the shot is actually going, so pulling back to contain it shows the player the real
+## consequence of the drag rather than a guess at it.
+func line_bounds() -> Rect2:
+	if not _visible_line or _points.size() < 2:
+		return Rect2()
+	var box: Rect2 = Rect2(_points[0], Vector2.ZERO)
+	for p: Vector2 in _points:
+		box = box.expand(p)
+	return box
+
+
 func show_line(colour: Color) -> void:
 	_colour = colour
 	_visible_line = true

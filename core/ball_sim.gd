@@ -281,6 +281,33 @@ static func fan_support(state: BallState, form: BallForm, world: StepWorld) -> b
 	return false
 
 
+## Is the ball sitting still, just above something it could stand on?
+##
+## The support probe reaches `world.edgeSupportMargin` -- a few pixels -- because that is the right
+## reach for deciding what the ball is *resting on*. It is the wrong reach for deciding whether a
+## player is stranded. A ball can come to a dead stop a little clear of a surface: wedged in a dip
+## whose normal is too steep to count, settled on a curve where the probe passes beside the
+## contact, or held just off a ledge. None of those is airborne in any sense the player would
+## recognise, and in a game with no walking a shot that will not fire there is the end of the run.
+##
+## So: near-stationary AND something flat within reach below. Both halves matter. Speed alone would
+## hand a free shot to the apex of every vertical launch, where velocity passes through zero;
+## requiring a surface within a ball's reach below means the only place it triggers is one the
+## player would call standing.
+##
+## The speed test reuses `world.restMaxSpeed`, which is already this project's definition of "slow
+## enough to count as resting", rather than inventing a second number that would drift from it.
+static func hovering_support(state: BallState, form: BallForm, world: StepWorld) -> bool:
+	var t: TuningData = TuningData.get_active()
+	var reach: float = maxf(0.0, t.grounded_hover_reach)
+	if reach <= 0.0:
+		return false
+	if state.vx * state.vx + state.vy * state.vy > t.world_rest_max_speed * t.world_rest_max_speed:
+		return false
+	var found: Array = ground_under(state, form, world, reach)
+	return not found.is_empty() and is_horizontal_surface(found[1] as float)
+
+
 # ---------------------------------------------------------------- levers
 
 ## Tip every plank by one step. Called once per `step_ball`, never per substep.
@@ -750,8 +777,8 @@ static func _reset_settle_when_airborne(state: BallState, form: BallForm) -> voi
 
 
 ## What is under the ball, and how flat it is. Returns [material, ny].
-static func ground_under(state: BallState, form: BallForm, world: StepWorld) -> Array:
-	var probe_y: float = state.y + TuningData.get_active().world_edge_support_margin + 1.0
+static func ground_under(state: BallState, form: BallForm, world: StepWorld, extra_reach: float = 0.0) -> Array:
+	var probe_y: float = state.y + TuningData.get_active().world_edge_support_margin + 1.0 + maxf(0.0, extra_reach)
 	for shape: ShapeBody in world.shapes:
 		if not world.is_shape_solid(shape) or not GlassRules.is_solid_for(shape, form):
 			continue
