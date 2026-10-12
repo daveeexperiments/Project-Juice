@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://bqliqq328r3ch" path="res://levels/level.gd" id="1_level"]
 [ext_resource type="Script" uid="uid://bgi5hh35gllt5" path="res://ball/ball.gd" id="2_ball"]
-[ext_resource type="PackedScene" path="res://art/scenes/terrain/blob_sheet_1_01.tscn" id="3_k41hd"]
 [ext_resource type="Script" uid="uid://c64ji3wuilyxh" path="res://slingshot/slingshot.gd" id="3_sling"]
 [ext_resource type="PackedScene" path="res://art/scenes/terrain/blob_sheet_1_06.tscn" id="3_vuiy4"]
 [ext_resource type="Script" uid="uid://c520mbhbjptw3" path="res://prediction/trajectory_preview.gd" id="4_preview"]
@@ -21,16 +20,17 @@
 [ext_resource type="PackedScene" path="res://art/scenes/terrain/blob_sheet_1_09.tscn" id="19_k5vw7"]
 [ext_resource type="PackedScene" path="res://art/scenes/props/prop_sheet_1_17.tscn" id="20_k5vw7"]
 [ext_resource type="PackedScene" path="res://art/scenes/props/prop_sheet_1_12.tscn" id="21_nnyi2"]
+[ext_resource type="PackedScene" path="res://art/scenes/props/open_ring_00.tscn" id="23_aus6a"]
+[ext_resource type="PackedScene" path="res://art/scenes/terrain/blob_sheet_2_13.tscn" id="23_igkdo"]
+[ext_resource type="PackedScene" path="res://art/scenes/terrain/blob_sheet_2_12.tscn" id="24_7wv4u"]
 [ext_resource type="PackedScene" path="res://art/scenes/props/prop_sheet_1_00.tscn" id="24_igkdo"]
+[ext_resource type="PackedScene" path="res://art/scenes/terrain/blob_sheet_2_21.tscn" id="25_cpjlf"]
+[ext_resource type="PackedScene" path="res://art/scenes/terrain/blob_sheet_2_19.tscn" id="26_rvvn7"]
 
 [node name="Beat01" type="Node2D" unique_id=1297836918]
 script = ExtResource("1_level")
 
 [node name="Terrain" type="Node2D" parent="." unique_id=1812355029]
-
-[node name="blob_sheet_1_01" parent="Terrain" unique_id=1183582296 instance=ExtResource("3_k41hd")]
-position = Vector2(-2663, 1308)
-color = Color(0, 0, 0, 0)
 
 [node name="blob_sheet_1_06" parent="Terrain" unique_id=1637940940 instance=ExtResource("3_vuiy4")]
 position = Vector2(656, -160)
@@ -70,6 +70,12 @@ color = Color(0, 0, 0, 0)
 position = Vector2(618.0001, 1545.0002)
 rotation = 2.9653144
 scale = Vector2(2.9725406, 2.9725406)
+color = Color(0, 0, 0, 0)
+
+[node name="blob_sheet_1_11" parent="Terrain" unique_id=1210646608 instance=ExtResource("19_k5vw7")]
+position = Vector2(1384, 2620.0002)
+rotation = 0.17453292
+scale = Vector2(-3.936886, 3.936886)
 color = Color(0, 0, 0, 0)
 
 [node name="Props" type="Node2D" parent="." unique_id=1086718218]
@@ -207,4 +213,51 @@ color = Color(0, 0, 0, 0)
 position = Vector2(444, 1943)
 rotation = 3.3178709
 scale = Vector2(2.9725406, 2.9725406)
+color = Color(0, 0, 0, 0)
+
+[node name="open_ring_00" parent="." unique_id=2139825208 instance=ExtResource("23_aus6a")]
+position = Vector2(52.02991, 1737.3214)
+rotation = 1.3089969
+scale = Vector2(1.5170078, 1.517008)
+color = Color(0, 0, 0, 0)
+
+[node name="blob_sheet_1_09" parent="." unique_id=258973449 instance=ExtResource("19_k5vw7")]
+position = Vector2(190.9999, 2225)
+rotation = 1.0471976
+scale = Vector2(-1.3874545, 1.3899016)
+color = Color(0, 0, 0, 0)
+
+[node name="blob_sheet_2_13" parent="." unique_id=950955511 instance=ExtResource("23_igkdo")]
+position = Vector2(1883.0001, 2398.0002)
+rotation = 1.0471976
+scale = Vector2(-1.2718678, 1.2718678)
+color = Color(0, 0, 0, 0)
+
+[node name="blob_sheet_2_14" parent="." unique_id=940353733 instance=ExtResource("23_igkdo")]
+position = Vector2(-6056.9985, 16492)
+rotation = 2.0943952
+scale = Vector2(-5.7508073, 5.750807)
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(145.07652, 1066.7572, 202.55685, 1062.2299, 239.8108, 1036.8242, 259.75723, 992.92334, 263.62897, 904.6114, 233, 538.1606, 272.79117, 344.0759, 321.28745, 265.24744, 431.25336, 191.4902, 568.9057, 158.76353, 598.81085, 135.82423, 616.7572, 96.92334, 616.75354, 63.06373, 585.8432, 17.21875, 492.00272, 0.25199, 400.77203, 8.49043, 302.07837, 41.23951, 178.35184, 114.7022, 118.19394, 176.15854, 69.8762, 252.75493, 27.88422, 373.50964, 0.27528, 641.3826, 30.1437, 899.0611, 64.78265, 994.32166, 106.16109, 1048.8029)
+
+[node name="blob_sheet_2_15" parent="." unique_id=1479412908 instance=ExtResource("24_7wv4u")]
+position = Vector2(-11.99995, 3003)
+rotation = -1.7453293
+scale = Vector2(1.8819727, 1.881973)
+color = Color(0, 0, 0, 0)
+
+[node name="blob_sheet_2_21" parent="." unique_id=1022882211 instance=ExtResource("25_cpjlf")]
+position = Vector2(374, 2571.9998)
+scale = Vector2(1.7102414, 1.7102414)
+color = Color(0, 0, 0, 0)
+
+[node name="blob_sheet_1_10" parent="." unique_id=1780050551 instance=ExtResource("19_k5vw7")]
+position = Vector2(4142.9995, 11000)
+rotation = -0.7853982
+scale = Vector2(-3.936886, 3.936886)
+color = Color(0, 0, 0, 0)
+
+[node name="blob_sheet_2_19" parent="." unique_id=893979948 instance=ExtResource("26_rvvn7")]
+position = Vector2(-2311, 4257.0005)
+scale = Vector2(6.874201, 6.8742013)
 color = Color(0, 0, 0, 0)
