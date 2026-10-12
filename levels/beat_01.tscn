@@ -10,6 +10,7 @@
 [ext_resource type="Script" uid="uid://k0umov46tnfk" path="res://debug/debug_overlay.gd" id="6_debug"]
 [ext_resource type="PackedScene" path="res://art/scenes/props/prop_sheet_1_13.tscn" id="6_xuokj"]
 [ext_resource type="Script" uid="uid://b1icbvrghjd5t" path="res://levels/shatter_effect.gd" id="7_shatter"]
+[ext_resource type="Script" uid="uid://crqyagh0r6omj" path="res://blocks/pipe_block.gd" id="8_nnyi2"]
 [ext_resource type="PackedScene" uid="uid://cso3faqf3ndna" path="res://blocks/Spawn.tscn" id="8_spawn"]
 [ext_resource type="PackedScene" uid="uid://cl3t33em4ori1" path="res://blocks/Flag.tscn" id="9_flag"]
 [ext_resource type="PackedScene" path="res://art/scenes/props/prop_sheet_1_46.tscn" id="12_stack"]
@@ -78,6 +79,12 @@ position = Vector2(851, 611)
 scale = Vector2(0.9, 0.9)
 color = Color(0, 0, 0, 0)
 polygon = PackedVector2Array(3.22417, 3.2363, 3.94013, 60.0133, 30.64112, 106.38648, 36.84103, 145.50655, 35.09214, 534.6989, 0.24464, 612.0605, 3.23791, 659.8013, 258.77582, 658.7637, 258.75568, 603.0974, 225.69145, 525.7773, 223.00633, 170.9069, 228.02898, 114.49404, 259.76114, 59.88982, 261.7442, 15.03528, 261.7886, 4.057907)
+
+[node name="PipeBlock" type="Polygon2D" parent="Props/ChimneyB" unique_id=156410900]
+color = Color(0, 0, 0, 0)
+polygon = PackedVector2Array(137.77777, 2.222229, 137.77777, 314.44446, 137.77777, 665.55554)
+script = ExtResource("8_nnyi2")
+metadata/_custom_type_script = "uid://crqyagh0r6omj"
 
 [node name="ChimneyB2" parent="Props" unique_id=740448787 instance=ExtResource("12_stack")]
 position = Vector2(-988.3895, 633.84827)
